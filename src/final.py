@@ -5,11 +5,70 @@ from PIL import Image
 from paddleocr import PaddleOCR, draw_ocr
 import numpy as np
 import asyncio
+import paho.mqtt.client as mqtt
+import imagezmq
+import socket
+import time
+import math
+import pickle
+import sys
+import os
+from deep_sort.deep_sort import DeepSort
+from deep_sort.utils.parser import get_config
 
 # Load the YOLOv8 model
 model = YOLO('yolov8n.pt')
 model2 = YOLO('best.pt')
 ocr = PaddleOCR(use_angle_cls=True, lang="en")
+
+
+max_length = 65000
+host = "127.0.0.1"
+port = 5001
+
+
+sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+
+def send_frame(frame):
+    # compress frame
+    retval, buffer = cv2.imencode(".jpg", frame)
+
+    if retval:
+        # convert to byte array
+        buffer = buffer.tobytes()
+        # get size of the frame
+        buffer_size = len(buffer)
+
+        num_of_packs = 1
+        if buffer_size > max_length:
+            num_of_packs = math.ceil(buffer_size / max_length)
+
+        frame_info = {"packs": num_of_packs}
+
+        # send the number of packs to be expected
+        print("Number of packs:", num_of_packs)
+        sock.sendto(pickle.dumps(frame_info), (host, port))
+
+        left = 0
+        right = max_length
+
+        for i in range(num_of_packs):
+            print("left:", left)
+            print("right:", right)
+
+            # truncate data to send
+            data = buffer[left:right]
+            left = right
+            right += max_length
+
+            # send the frames accordingly
+            sock.sendto(data, (host, port))
+
+# Define MQTT parameters
+client = mqtt.Client("trafficflowyolov8")
+client.connect("broker.hivemq.com", 1883, 60)
+
+
 
 # Define colors for different vehicles
 color_dict = {2: (0, 255, 0),  # car
@@ -22,7 +81,7 @@ color_dict = {2: (0, 255, 0),  # car
 track_history = defaultdict(lambda: [])
 
 # Open the video file
-video_path = "input\demo.mp4"
+video_path = "/home/nawin/Projects/kgx/trafficflowyolov8/input/PXL_20230417_082118392.mp4"
 cap = cv2.VideoCapture(video_path)
 
 # Get video information (width, height, frames per second)
@@ -79,13 +138,13 @@ while cap.isOpened():
                     cv2.rectangle(frame, (x1, y1), (x2, y2), color, thickness)
                     # Display class name in the top of the bounding box
                     if cls == 2:
-                        class_name = f"Car: {cls}"
+                        class_name = f"Car"
                     elif cls == 3:
-                        class_name = f"Bike: {cls}"
+                        class_name = f"Bike"
                     elif cls == 5:
-                        class_name = f"Bus: {cls}"
+                        class_name = f"Bus"
                     elif cls == 7:
-                        class_name = f"Truck: {cls}"
+                        class_name = f"Truck"
                     cv2.putText(frame, class_name, (x1, y1 - 10), cv2.FONT_HERSHEY_SIMPLEX, 0.5, color, thickness)
 
                     print(f"Vehicle detected: {class_name}")
@@ -103,13 +162,16 @@ while cap.isOpened():
                             cv2.imshow("cropped", crop_img)
                             plate_text = asyncio.run(function_async2(crop_img))
                             print('Plate Text:', plate_text)
+                            result = "{class_name}, {plate_text}".format(class_name=class_name, plate_text=plate_text)
+                            client.publish('trafficflowyolov8', result)
 
                             # Draw number plate information on the annotated frame
                             cv2.putText(frame, f'Plate: {plate_text}', (10, 30),
                                         cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 255, 0), 2, cv2.LINE_AA)
 
             # Display the annotated frame
-            resized_frame = cv2.resize(frame, (900, 600))  # Adjust the window size as needed
+            resized_frame = cv2.resize(frame, (800, 600))  # Adjust the window size as needed
+            send_frame(resized_frame)
             cv2.imshow("YOLOv8 Tracking", resized_frame)
 
             # Write the frame to the output video
