@@ -24,10 +24,10 @@ ocr = PaddleOCR(use_angle_cls=True, lang="en")
 
 max_length = 65000
 host = "127.0.0.1"
-port = 5001
+port = 5000
 
 
-sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
 
 def send_frame(frame):
     # compress frame
@@ -82,6 +82,7 @@ track_history = defaultdict(lambda: [])
 
 # Open the video file
 video_path = "/home/nawin/Projects/kgx/trafficflowyolov8/input/PXL_20230417_082118392.mp4"
+
 cap = cv2.VideoCapture(video_path)
 
 # Get video information (width, height, frames per second)

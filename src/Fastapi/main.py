@@ -58,8 +58,8 @@ async def startup_event():
 app.include_router(router, prefix="/vehicle", tags=["vehicles"])
 app.include_router(webrouter, prefix="/web", tags=["web"])
 
-host = "127.0.0.1"
-port = 5001
+host = "0.0.0.0"
+port = 5000
 max_length = 65000
 
 sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
