@@ -1,3 +1,8 @@
 input/*
 output/*
 src/__pycache__
+*.pt
+*.mp4
+*.pth
+venv/*
+```

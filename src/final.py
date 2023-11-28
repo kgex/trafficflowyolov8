@@ -6,13 +6,13 @@ from paddleocr import PaddleOCR, draw_ocr
 import numpy as np
 import asyncio
 import paho.mqtt.client as mqtt
-import imagezmq
 import socket
 import time
 import math
 import pickle
 import sys
 import os
+import re
 from deep_sort.deep_sort import DeepSort
 from deep_sort.utils.parser import get_config
 
@@ -20,6 +20,24 @@ from deep_sort.utils.parser import get_config
 model = YOLO('yolov8n.pt')
 model2 = YOLO('best.pt')
 ocr = PaddleOCR(use_angle_cls=True, lang="en")
+
+def checkForNumberPlate(numPlate):
+   # Defining the regular expression
+   patt = "^[A-Z]{2}[ -]?[0-9]{2}[ -]?[A-Z]{1,2}[ -]?[0-9]{4}$"
+
+   # When the string is empty
+   if not numPlate:
+      return False
+   
+   if len(numPlate) == 0:
+       return False
+
+   # Return the answer after validating the number plate
+   if re.match(patt, numPlate):
+      return True
+   else:
+      return False
+
 
 
 max_length = 65000
@@ -81,7 +99,7 @@ color_dict = {2: (0, 255, 0),  # car
 track_history = defaultdict(lambda: [])
 
 # Open the video file
-video_path = "/home/nawin/Projects/kgx/trafficflowyolov8/input/PXL_20230417_082118392.mp4"
+video_path = "/home/nawin/Projects/trafficflowyolov8/input/PXL_20230417_082118392.mp4"
 
 cap = cv2.VideoCapture(video_path)
 
@@ -89,10 +107,6 @@ cap = cv2.VideoCapture(video_path)
 width = int(cap.get(cv2.CAP_PROP_FRAME_WIDTH))
 height = int(cap.get(cv2.CAP_PROP_FRAME_HEIGHT))
 fps = int(cap.get(cv2.CAP_PROP_FPS))
-
-# Define the codec and create a VideoWriter object
-fourcc = cv2.VideoWriter_fourcc(*'mp4v')
-output_video = cv2.VideoWriter('output\output_video.mp4', fourcc, fps, (width, height))
 
 async def function_async2(plate_crop_img):
     print(plate_crop_img.shape)
@@ -105,14 +119,16 @@ async def function_async2(plate_crop_img):
         data.save('Non.png')
         text = ocr.ocr('Non.png')
         result = ''
-        print('Numberplate: ', text)
         for idx in range(len(text)):
             res = text[idx]
             if res is not None:
                 for line in res:
                     result += (line[1][0])
-                print('Numberplate: ', result)
-        return result
+                    confidence = line[1][1]
+                print('Numberplate: ', result, "Confidence", confidence)
+                return result
+
+
 
 # Loop through the video frames
 while cap.isOpened():
@@ -146,7 +162,7 @@ while cap.isOpened():
                         class_name = f"Bus"
                     elif cls == 7:
                         class_name = f"Truck"
-                    cv2.putText(frame, class_name, (x1, y1 - 10), cv2.FONT_HERSHEY_SIMPLEX, 0.5, color, thickness)
+                    cv2.putText(frame, class_name, (x1, y1 - 10), cv2.FONT_HERSHEY_SIMPLEX, 2.0, color, thickness)
 
                     print(f"Vehicle detected: {class_name}")
                     cropped_img = frame[y1:y2, x1:x2]
@@ -162,13 +178,15 @@ while cap.isOpened():
                             crop_img = cropped_img[y:h, x:w]
                             cv2.imshow("cropped", crop_img)
                             plate_text = asyncio.run(function_async2(crop_img))
-                            print('Plate Text:', plate_text)
-                            result = "{class_name}, {plate_text}".format(class_name=class_name, plate_text=plate_text)
-                            client.publish('trafficflowyolov8', result)
+                            if checkForNumberPlate(plate_text):
+                                print('Plate Text:', plate_text)
+                                result = f"{track_ids},{class_name}, {plate_text}"
+                                print(result)
+                                client.publish('trafficflowyolov8', result)
 
-                            # Draw number plate information on the annotated frame
-                            cv2.putText(frame, f'Plate: {plate_text}', (10, 30),
-                                        cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 255, 0), 2, cv2.LINE_AA)
+                                # Draw number plate information on the annotated frame 
+                                cv2.putText(frame, f'Plate: {plate_text}', (10, 30),
+                                            cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 255, 0), 2, cv2.LINE_AA)
 
             # Display the annotated frame
             resized_frame = cv2.resize(frame, (800, 600))  # Adjust the window size as needed
@@ -176,8 +194,6 @@ while cap.isOpened():
             cv2.imshow("YOLOv8 Tracking", resized_frame)
 
             # Write the frame to the output video
-            output_video.write(frame)
-
         # Break the loop if 'q' is pressed
         if cv2.waitKey(1) & 0xFF == ord("q"):
             break
@@ -187,5 +203,4 @@ while cap.isOpened():
 
 # Release the video capture object, close the display window, and release the output video
 cap.release()
-output_video.release()
 cv2.destroyAllWindows()
