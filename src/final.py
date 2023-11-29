@@ -13,13 +13,24 @@ import pickle
 import sys
 import os
 import re
+from sklearn.cluster import KMeans
+import pandas as pd
+import webcolors
 from deep_sort.deep_sort import DeepSort
+from deep_sort import build_tracker
 from deep_sort.utils.parser import get_config
 
 # Load the YOLOv8 model
 model = YOLO('yolov8n.pt')
 model2 = YOLO('best.pt')
 ocr = PaddleOCR(use_angle_cls=True, lang="en")
+cfg = get_config()
+cfg.merge_from_file("deep_sort/configs/deep_sort.yaml")
+deepsort = DeepSort("osnet_x0_25",
+                    max_dist=cfg.DEEPSORT.MAX_DIST,
+                    max_iou_distance=cfg.DEEPSORT.MAX_IOU_DISTANCE,
+                    max_age=cfg.DEEPSORT.MAX_AGE, n_init=cfg.DEEPSORT.N_INIT, nn_budget=cfg.DEEPSORT.NN_BUDGET,
+                    use_cuda=True)
 
 def checkForNumberPlate(numPlate):
    # Defining the regular expression
@@ -37,7 +48,31 @@ def checkForNumberPlate(numPlate):
       return True
    else:
       return False
+   
 
+def extract_dominant_color(image, k=1):
+    # Convert the image from BGR to RGB
+    image_rgb = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
+
+    # Reshape the image to be a list of pixels
+    pixels = image_rgb.reshape((-1, 3))
+
+    # Apply k-means clustering
+    kmeans = KMeans(n_clusters=k)
+    kmeans.fit(pixels)
+
+    # Get the dominant color(s)
+    dominant_colors = kmeans.cluster_centers_.astype(int)
+
+    result =  rgb_to_color_name(dominant_colors)
+    return result
+
+def rgb_to_color_name(rgb):
+    try:
+        color_name = webcolors.rgb_to_name(rgb)
+        return color_name
+    except ValueError:
+        return "Unknown Color"
 
 
 max_length = 65000
@@ -99,7 +134,7 @@ color_dict = {2: (0, 255, 0),  # car
 track_history = defaultdict(lambda: [])
 
 # Open the video file
-video_path = "/home/nawin/Projects/trafficflowyolov8/input/PXL_20230417_082118392.mp4"
+video_path = "/home/nawin/Projects/trafficflowyolov8/input/test.mp4"
 
 cap = cv2.VideoCapture(video_path)
 
@@ -125,12 +160,9 @@ async def function_async2(plate_crop_img):
                 for line in res:
                     result += (line[1][0])
                     confidence = line[1][1]
-                print('Numberplate: ', result, "Confidence", confidence)
-                return result
-
-
-
-# Loop through the video frames
+                    print('Numberplate: ', result, "Confidence", confidence)
+        return result
+    
 while cap.isOpened():
     # Read a frame from the video
     success, frame = cap.read()
@@ -155,17 +187,22 @@ while cap.isOpened():
                     cv2.rectangle(frame, (x1, y1), (x2, y2), color, thickness)
                     # Display class name in the top of the bounding box
                     if cls == 2:
-                        class_name = f"Car"
+                        class_name = f"Car: {cls}"
                     elif cls == 3:
-                        class_name = f"Bike"
+                        class_name = f"Bike: {cls}"
                     elif cls == 5:
-                        class_name = f"Bus"
+                        class_name = f"Bus: {cls}"
                     elif cls == 7:
-                        class_name = f"Truck"
-                    cv2.putText(frame, class_name, (x1, y1 - 10), cv2.FONT_HERSHEY_SIMPLEX, 2.0, color, thickness)
+                        class_name = f"Truck: {cls}"
+                    cv2.putText(frame, class_name, (x1, y1 - 10), cv2.FONT_HERSHEY_SIMPLEX, 0.5, color, thickness)
 
-                    print(f"Vehicle detected: {class_name}")
+                    print(f"Vehicle detected: {class_name} with track ID: {track_ids[i]}")
+
+
+                    ## Numberplate Identification
                     cropped_img = frame[y1:y2, x1:x2]
+                    dominant_color = extract_dominant_color(cropped_img, k=1)[0]
+                    print(color)
                     # cv2.imshow("cropped", cropped_img)
                     result_new = model2(cropped_img)
                     # Check if boxes are not None before accessing elements
@@ -178,22 +215,17 @@ while cap.isOpened():
                             crop_img = cropped_img[y:h, x:w]
                             cv2.imshow("cropped", crop_img)
                             plate_text = asyncio.run(function_async2(crop_img))
-                            if checkForNumberPlate(plate_text):
-                                print('Plate Text:', plate_text)
-                                result = f"{track_ids},{class_name}, {plate_text}"
-                                print(result)
-                                client.publish('trafficflowyolov8', result)
+                            print('Plate Text:', plate_text)
 
-                                # Draw number plate information on the annotated frame 
-                                cv2.putText(frame, f'Plate: {plate_text}', (10, 30),
-                                            cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 255, 0), 2, cv2.LINE_AA)
+                            # Draw number plate information on the annotated frame
+                            cv2.putText(frame, f'Plate: {plate_text}', (10, 30),
+                                        cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 255, 0), 2, cv2.LINE_AA)
 
             # Display the annotated frame
-            resized_frame = cv2.resize(frame, (800, 600))  # Adjust the window size as needed
-            send_frame(resized_frame)
+            resized_frame = cv2.resize(frame, (900, 600))  # Adjust the window size as needed
             cv2.imshow("YOLOv8 Tracking", resized_frame)
 
-            # Write the frame to the output video
+
         # Break the loop if 'q' is pressed
         if cv2.waitKey(1) & 0xFF == ord("q"):
             break
@@ -203,4 +235,3 @@ while cap.isOpened():
 
 # Release the video capture object, close the display window, and release the output video
 cap.release()
-cv2.destroyAllWindows()
