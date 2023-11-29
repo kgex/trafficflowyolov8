@@ -121,8 +121,6 @@ def send_frame(frame):
 client = mqtt.Client("trafficflowyolov8")
 client.connect("broker.hivemq.com", 1883, 60)
 
-
-
 # Define colors for different vehicles
 color_dict = {2: (0, 255, 0),  # car
               3: (255, 0, 0),  # bike
@@ -143,6 +141,9 @@ width = int(cap.get(cv2.CAP_PROP_FRAME_WIDTH))
 height = int(cap.get(cv2.CAP_PROP_FRAME_HEIGHT))
 fps = int(cap.get(cv2.CAP_PROP_FPS))
 
+numberplate_df = pd.DataFrame(columns=['class_id', 'vehicle_type', 'numberplate','color','time'])
+
+# Function to extract the text from the number plate
 async def function_async2(plate_crop_img):
     print(plate_crop_img.shape)
     if plate_crop_img.shape[0] == 0 or plate_crop_img.shape[1] == 0:
@@ -196,18 +197,17 @@ while cap.isOpened():
                         class_name = f"Truck: {cls}"
                     cv2.putText(frame, class_name, (x1, y1 - 10), cv2.FONT_HERSHEY_SIMPLEX, 0.5, color, thickness)
 
-                    print(f"Vehicle detected: {class_name} with track ID: {track_ids[i]}")
 
-
-                    ## Numberplate Identification
+                    # Numberplate Identification
                     cropped_img = frame[y1:y2, x1:x2]
                     dominant_color = extract_dominant_color(cropped_img, k=1)[0]
+
                     print(color)
                     # cv2.imshow("cropped", cropped_img)
                     result_new = model2(cropped_img)
                     # Check if boxes are not None before accessing elements
                     for i in range(len(result_new[0].boxes)):
-                        if result_new[0].boxes is not None and len(result_new[0].boxes.xyxy) > 0:
+                        if track_history.get(track_ids[i]) is None and result_new[0].boxes is not None and len(result_new[0].boxes.xyxy) > 0:
                             x, y, w, h = result_new[0].boxes.xyxy[0]
                             x, y, w, h = x.cpu().numpy().astype(np.int32), y.cpu().numpy().astype(np.int32), w.cpu().numpy().astype(
                                 np.int32), h.cpu().numpy().astype(np.int32)
@@ -216,15 +216,20 @@ while cap.isOpened():
                             cv2.imshow("cropped", crop_img)
                             plate_text = asyncio.run(function_async2(crop_img))
                             print('Plate Text:', plate_text)
-
+                            if checkForNumberPlate:
+                                result = f"{track_ids[i]}, {class_name}, {plate_text}, {dominant_color}, {time.time()}"
+                                track_history.update({track_ids[i]: [x1, y1, x2, y2]})
+                                print("Data Stored in mqtt \n", result)
+                                client.publish("trafficflowyolov8", result)
+                                
                             # Draw number plate information on the annotated frame
                             cv2.putText(frame, f'Plate: {plate_text}', (10, 30),
                                         cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 255, 0), 2, cv2.LINE_AA)
 
             # Display the annotated frame
             resized_frame = cv2.resize(frame, (900, 600))  # Adjust the window size as needed
-            cv2.imshow("YOLOv8 Tracking", resized_frame)
 
+            cv2.imshow("YOLOv8 Tracking", resized_frame)
 
         # Break the loop if 'q' is pressed
         if cv2.waitKey(1) & 0xFF == ord("q"):
