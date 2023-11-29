@@ -5,11 +5,123 @@ from PIL import Image
 from paddleocr import PaddleOCR, draw_ocr
 import numpy as np
 import asyncio
+import paho.mqtt.client as mqtt
+import socket
+import time
+import math
+import pickle
+import sys
+import os
+import re
+from sklearn.cluster import KMeans
+import pandas as pd
+import webcolors
+from deep_sort.deep_sort import DeepSort
+from deep_sort import build_tracker
+from deep_sort.utils.parser import get_config
 
 # Load the YOLOv8 model
 model = YOLO('yolov8n.pt')
 model2 = YOLO('best.pt')
 ocr = PaddleOCR(use_angle_cls=True, lang="en")
+cfg = get_config()
+cfg.merge_from_file("deep_sort/configs/deep_sort.yaml")
+deepsort = DeepSort("osnet_x0_25",
+                    max_dist=cfg.DEEPSORT.MAX_DIST,
+                    max_iou_distance=cfg.DEEPSORT.MAX_IOU_DISTANCE,
+                    max_age=cfg.DEEPSORT.MAX_AGE, n_init=cfg.DEEPSORT.N_INIT, nn_budget=cfg.DEEPSORT.NN_BUDGET,
+                    use_cuda=True)
+
+def checkForNumberPlate(numPlate):
+   # Defining the regular expression
+   patt = "^[A-Z]{2}[ -]?[0-9]{2}[ -]?[A-Z]{1,2}[ -]?[0-9]{4}$"
+
+   # When the string is empty
+   if not numPlate:
+      return False
+   
+   if len(numPlate) == 0:
+       return False
+
+   # Return the answer after validating the number plate
+   if re.match(patt, numPlate):
+      return True
+   else:
+      return False
+   
+
+def extract_dominant_color(image, k=1):
+    # Convert the image from BGR to RGB
+    image_rgb = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
+
+    # Reshape the image to be a list of pixels
+    pixels = image_rgb.reshape((-1, 3))
+
+    # Apply k-means clustering
+    kmeans = KMeans(n_clusters=k)
+    kmeans.fit(pixels)
+
+    # Get the dominant color(s)
+    dominant_colors = kmeans.cluster_centers_.astype(int)
+
+    result =  rgb_to_color_name(dominant_colors)
+    return result
+
+def rgb_to_color_name(rgb):
+    try:
+        color_name = webcolors.rgb_to_name(rgb)
+        return color_name
+    except ValueError:
+        return "Unknown Color"
+
+
+max_length = 65000
+host = "127.0.0.1"
+port = 5000
+
+
+sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+
+def send_frame(frame):
+    # compress frame
+    retval, buffer = cv2.imencode(".jpg", frame)
+
+    if retval:
+        # convert to byte array
+        buffer = buffer.tobytes()
+        # get size of the frame
+        buffer_size = len(buffer)
+
+        num_of_packs = 1
+        if buffer_size > max_length:
+            num_of_packs = math.ceil(buffer_size / max_length)
+
+        frame_info = {"packs": num_of_packs}
+
+        # send the number of packs to be expected
+        print("Number of packs:", num_of_packs)
+        sock.sendto(pickle.dumps(frame_info), (host, port))
+
+        left = 0
+        right = max_length
+
+        for i in range(num_of_packs):
+            print("left:", left)
+            print("right:", right)
+
+            # truncate data to send
+            data = buffer[left:right]
+            left = right
+            right += max_length
+
+            # send the frames accordingly
+            sock.sendto(data, (host, port))
+
+# Define MQTT parameters
+client = mqtt.Client("trafficflowyolov8")
+client.connect("broker.hivemq.com", 1883, 60)
+
+
 
 # Define colors for different vehicles
 color_dict = {2: (0, 255, 0),  # car
@@ -22,17 +134,14 @@ color_dict = {2: (0, 255, 0),  # car
 track_history = defaultdict(lambda: [])
 
 # Open the video file
-video_path = "input\demo.mp4"
+video_path = "/home/nawin/Projects/trafficflowyolov8/input/test.mp4"
+
 cap = cv2.VideoCapture(video_path)
 
 # Get video information (width, height, frames per second)
 width = int(cap.get(cv2.CAP_PROP_FRAME_WIDTH))
 height = int(cap.get(cv2.CAP_PROP_FRAME_HEIGHT))
 fps = int(cap.get(cv2.CAP_PROP_FPS))
-
-# Define the codec and create a VideoWriter object
-fourcc = cv2.VideoWriter_fourcc(*'mp4v')
-output_video = cv2.VideoWriter('output\output_video.mp4', fourcc, fps, (width, height))
 
 async def function_async2(plate_crop_img):
     print(plate_crop_img.shape)
@@ -45,16 +154,15 @@ async def function_async2(plate_crop_img):
         data.save('Non.png')
         text = ocr.ocr('Non.png')
         result = ''
-        print('Numberplate: ', text)
         for idx in range(len(text)):
             res = text[idx]
             if res is not None:
                 for line in res:
                     result += (line[1][0])
-                print('Numberplate: ', result)
+                    confidence = line[1][1]
+                    print('Numberplate: ', result, "Confidence", confidence)
         return result
-
-# Loop through the video frames
+    
 while cap.isOpened():
     # Read a frame from the video
     success, frame = cap.read()
@@ -88,8 +196,13 @@ while cap.isOpened():
                         class_name = f"Truck: {cls}"
                     cv2.putText(frame, class_name, (x1, y1 - 10), cv2.FONT_HERSHEY_SIMPLEX, 0.5, color, thickness)
 
-                    print(f"Vehicle detected: {class_name}")
+                    print(f"Vehicle detected: {class_name} with track ID: {track_ids[i]}")
+
+
+                    ## Numberplate Identification
                     cropped_img = frame[y1:y2, x1:x2]
+                    dominant_color = extract_dominant_color(cropped_img, k=1)[0]
+                    print(color)
                     # cv2.imshow("cropped", cropped_img)
                     result_new = model2(cropped_img)
                     # Check if boxes are not None before accessing elements
@@ -112,8 +225,6 @@ while cap.isOpened():
             resized_frame = cv2.resize(frame, (900, 600))  # Adjust the window size as needed
             cv2.imshow("YOLOv8 Tracking", resized_frame)
 
-            # Write the frame to the output video
-            output_video.write(frame)
 
         # Break the loop if 'q' is pressed
         if cv2.waitKey(1) & 0xFF == ord("q"):
@@ -124,5 +235,3 @@ while cap.isOpened():
 
 # Release the video capture object, close the display window, and release the output video
 cap.release()
-output_video.release()
-cv2.destroyAllWindows()
