@@ -12,3 +12,12 @@ TrafficFlow is an advanced project developed by [kgexperience](https://github.co
 - [Acknowledgments](#acknowledgments)
 - [Contact](#contact)
 - [Stay Connected](#stay-connected)
+
+## Getting Started
+
+Follow these simple steps to get started with TrafficFlow:
+
+1. **Clone the Repository:**
+   ```bash
+   git clone https://github.com/kgex/trafficflowyolov8
+
