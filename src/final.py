@@ -1,11 +1,6 @@
-import cv2
-from ultralytics import YOLO
+"""Program to detect vehicles and number plates in a video using YOLOv8 and PaddleOCR"""
 from collections import defaultdict
-from PIL import Image
-from paddleocr import PaddleOCR, draw_ocr
-import numpy as np
 import asyncio
-import paho.mqtt.client as mqtt
 import socket
 import time
 import math
@@ -13,45 +8,49 @@ import pickle
 import sys
 import os
 import re
+from scipy.spatial import KDTree
+from webcolors import CSS3_HEX_TO_NAMES, hex_to_rgb
+from webcolors import rgb_to_name
+import paho.mqtt.client as mqtt
+import numpy as np
+from paddleocr import PaddleOCR
+from PIL import Image
+from ultralytics import YOLO
+import cv2
 from sklearn.cluster import KMeans
-import pandas as pd
-import webcolors
-from deep_sort.deep_sort import DeepSort
-from deep_sort import build_tracker
-from deep_sort.utils.parser import get_config
+from pandas import DataFrame
+from webcolors import rgb_to_name
+
+
+sys.path.append({"workspaceFolder": "/home/nawin/Projects/trafficflowyolov8/src"})
 
 # Load the YOLOv8 model
 model = YOLO('yolov8n.pt')
 model2 = YOLO('best.pt')
 ocr = PaddleOCR(use_angle_cls=True, lang="en")
-cfg = get_config()
-cfg.merge_from_file("deep_sort/configs/deep_sort.yaml")
-deepsort = DeepSort("osnet_x0_25",
-                    max_dist=cfg.DEEPSORT.MAX_DIST,
-                    max_iou_distance=cfg.DEEPSORT.MAX_IOU_DISTANCE,
-                    max_age=cfg.DEEPSORT.MAX_AGE, n_init=cfg.DEEPSORT.N_INIT, nn_budget=cfg.DEEPSORT.NN_BUDGET,
-                    use_cuda=True)
 
-def checkForNumberPlate(numPlate):
-   # Defining the regular expression
-   patt = "^[A-Z]{2}[ -]?[0-9]{2}[ -]?[A-Z]{1,2}[ -]?[0-9]{4}$"
 
-   # When the string is empty
-   if not numPlate:
-      return False
-   
-   if len(numPlate) == 0:
-       return False
+def Checkfornumberplate(Numplate):
+    """Function to check if the number plate is valid or not"""
+    # Defining the regular expression
+    patt = "^[A-Z]{2}[ -]?[0-9]{2}[ -]?[A-Z]{1,2}[ -]?[0-9]{4}$"
 
-   # Return the answer after validating the number plate
-   if re.match(patt, numPlate):
-      return True
-   else:
-      return False
+    # When the string is empty
+    if not Numplate:
+        return False
+
+    if len(Numplate) == 0:
+        return False
+
+    # Return the answer after validating the number plate
+    if re.match(patt, Numplate):
+        return True
+    else:
+        return False
    
 
 def extract_dominant_color(image, k=1):
-    # Convert the image from BGR to RGB
+    """Convert the image from BGR to RGB"""
     image_rgb = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
 
     # Reshape the image to be a list of pixels
@@ -64,26 +63,37 @@ def extract_dominant_color(image, k=1):
     # Get the dominant color(s)
     dominant_colors = kmeans.cluster_centers_.astype(int)
 
-    result =  rgb_to_color_name(dominant_colors)
-    return result
+    return dominant_colors
+    
+def convert_rgb_to_names(rgb_tuple):
+    """Function to convert the rgb colors to its respective names."""    
+    # a dictionary of all the hex and their respective names in css3
+    css3_db = CSS3_HEX_TO_NAMES
+    names = []
+    rgb_values = []
+    for color_hex, color_name in css3_db.items():
+        names.append(color_name)
+        rgb_values.append(hex_to_rgb(color_hex))
+    
+    kdt_db = KDTree(rgb_values)
+    distance, index = kdt_db.query(rgb_tuple)
+    return f'closest match: {names[index]}'
 
-def rgb_to_color_name(rgb):
-    try:
-        color_name = webcolors.rgb_to_name(rgb)
-        return color_name
-    except ValueError:
-        return "Unknown Color"
+# def convert_rgb_to_names(rgb_tuple):
+#     """Function to convert the rgb colors to its respective names."""
+#     named_color = rgb_to_name(rgb_tuple, spec='css3')
+#     return named_color
 
 
-max_length = 65000
-host = "127.0.0.1"
-port = 5000
+MAX_LENGTH = 65000
+HOST = "127.0.0.1"
+PORT = 5000
 
 
 sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
 
 def send_frame(frame):
-    # compress frame
+    """compress frame and send to fast api using websockets"""
     retval, buffer = cv2.imencode(".jpg", frame)
 
     if retval:
@@ -93,17 +103,17 @@ def send_frame(frame):
         buffer_size = len(buffer)
 
         num_of_packs = 1
-        if buffer_size > max_length:
-            num_of_packs = math.ceil(buffer_size / max_length)
+        if buffer_size > MAX_LENGTH:
+            num_of_packs = math.ceil(buffer_size / MAX_LENGTH)
 
         frame_info = {"packs": num_of_packs}
 
         # send the number of packs to be expected
         print("Number of packs:", num_of_packs)
-        sock.sendto(pickle.dumps(frame_info), (host, port))
+        sock.sendto(pickle.dumps(frame_info), (HOST, PORT))
 
         left = 0
-        right = max_length
+        right = MAX_LENGTH
 
         for i in range(num_of_packs):
             print("left:", left)
@@ -112,10 +122,10 @@ def send_frame(frame):
             # truncate data to send
             data = buffer[left:right]
             left = right
-            right += max_length
+            right += MAX_LENGTH
 
             # send the frames accordingly
-            sock.sendto(data, (host, port))
+            sock.sendto(data, (HOST, PORT))
 
 # Define MQTT parameters
 client = mqtt.Client("trafficflowyolov8")
@@ -132,31 +142,29 @@ color_dict = {2: (0, 255, 0),  # car
 track_history = defaultdict(lambda: [])
 
 # Open the video file
-video_path = "/home/nawin/Projects/trafficflowyolov8/input/test.mp4"
+VIDEO_PATH = "/home/nawin/Projects/trafficflowyolov8/input/test.mp4"
 
-cap = cv2.VideoCapture(video_path)
+cap = cv2.VideoCapture(VIDEO_PATH)
 
 # Get video information (width, height, frames per second)
 width = int(cap.get(cv2.CAP_PROP_FRAME_WIDTH))
 height = int(cap.get(cv2.CAP_PROP_FRAME_HEIGHT))
 fps = int(cap.get(cv2.CAP_PROP_FPS))
 
-numberplate_df = pd.DataFrame(columns=['class_id', 'vehicle_type', 'numberplate','color','time'])
+numberplate_df = DataFrame(columns=['class_id', 'vehicle_type', 'numberplate','color','time'])
 
-# Function to extract the text from the number plate
+
 async def function_async2(plate_crop_img):
-    print(plate_crop_img.shape)
+    """ Function to extract the text from the number plate"""
     if plate_crop_img.shape[0] == 0 or plate_crop_img.shape[1] == 0:
-        result = 'No Plate Detected'
-        return result
+        return 'No Plate Detected'
     else:
-        global plate_count
         data = Image.fromarray(cv2.cvtColor(plate_crop_img, cv2.COLOR_BGR2RGB))
         data.save('Non.png')
         text = ocr.ocr('Non.png')
         result = ''
-        for idx in range(len(text)):
-            res = text[idx]
+        for idx, value in enumerate(text):
+            res = value
             if res is not None:
                 for line in res:
                     result += (line[1][0])
@@ -167,6 +175,7 @@ async def function_async2(plate_crop_img):
 while cap.isOpened():
     # Read a frame from the video
     success, frame = cap.read()
+    COUNT = 0
 
     if success:
         # Run YOLOv8 tracking on the frame, persisting tracks between frames
@@ -181,11 +190,12 @@ while cap.isOpened():
             for i in range(len(results[0].boxes)):
                 x1, y1, x2, y2 = map(int, results[0].boxes.xyxy.cpu()[i])
                 cls = results[0].boxes.cls[i].item()
+                print("Track id:", track_ids[i], "Class:", cls, "Coordinates:", x1, y1, x2, y2)
                 # Draw bounding box based on the detected class
                 if cls in color_dict:
                     color = color_dict[cls]
-                    thickness = 2  # Thickness of the bounding box
-                    cv2.rectangle(frame, (x1, y1), (x2, y2), color, thickness)
+                    THICKNESS = 2  # thickness of the bounding box
+                    cv2.rectangle(frame, (x1, y1), (x2, y2), color, THICKNESS)
                     # Display class name in the top of the bounding box
                     if cls == 2:
                         class_name = f"Car: {cls}"
@@ -195,34 +205,41 @@ while cap.isOpened():
                         class_name = f"Bus: {cls}"
                     elif cls == 7:
                         class_name = f"Truck: {cls}"
-                    cv2.putText(frame, class_name, (x1, y1 - 10), cv2.FONT_HERSHEY_SIMPLEX, 0.5, color, thickness)
-
+                    cv2.putText(
+                        frame, class_name, (x1, y1 - 10), 
+                        cv2.FONT_HERSHEY_SIMPLEX, 0.5, color, THICKNESS
+                    )
 
                     # Numberplate Identification
                     cropped_img = frame[y1:y2, x1:x2]
                     dominant_color = extract_dominant_color(cropped_img, k=1)[0]
-
+                    color = convert_rgb_to_names(dominant_color)
                     print(color)
                     # cv2.imshow("cropped", cropped_img)
                     result_new = model2(cropped_img)
                     # Check if boxes are not None before accessing elements
+                    if result_new[0].boxes is not None:
+                        print("No Numberplate Detected")
+                        continue
                     for i in range(len(result_new[0].boxes)):
-                        if track_history.get(track_ids[i]) is None and result_new[0].boxes is not None and len(result_new[0].boxes.xyxy) > 0:
-                            x, y, w, h = result_new[0].boxes.xyxy[0]
-                            x, y, w, h = x.cpu().numpy().astype(np.int32), y.cpu().numpy().astype(np.int32), w.cpu().numpy().astype(
-                                np.int32), h.cpu().numpy().astype(np.int32)
-                            annotated_frame = result_new[0].plot()
-                            crop_img = cropped_img[y:h, x:w]
-                            cv2.imshow("cropped", crop_img)
-                            plate_text = asyncio.run(function_async2(crop_img))
-                            print('Plate Text:', plate_text)
-                            if checkForNumberPlate:
-                                result = f"{track_ids[i]}, {class_name}, {plate_text}, {dominant_color}, {time.time()}"
-                                track_history.update({track_ids[i]: [x1, y1, x2, y2]})
-                                print("Data Stored in mqtt \n", result)
-                                client.publish("trafficflowyolov8", result)
-                                
-                            # Draw number plate information on the annotated frame
+                        if track_history.get(track_ids[i]) is None:
+                            if result_new[0].boxes is not None and len(result_new[0].boxes.xyxy) > 0:
+                                x, y, w, h = result_new[0].boxes.xyxy[0]
+                                x = x.cpu().numpy().astype(np.int32)
+                                y = y.cpu().numpy().astype(np.int32)
+                                w = w.cpu().numpy().astype(np.int32)
+                                h = h.cpu().numpy().astype(np.int32)
+                                annotated_frame = result_new[0].plot()
+                                crop_img = cropped_img[y:h, x:w]
+                                cv2.imshow("cropped", crop_img)
+                                plate_text = asyncio.run(function_async2(crop_img))
+                                print(f'Plate Text:{plate_text}, Color:{color}, Time:{time.time()}, Type: {class_name}')
+                                if Checkfornumberplate(plate_text):
+                                    result = f"{track_ids[i]}, {class_name}, {plate_text}, {dominant_color}, {time.time()}"
+                                    track_history.update({track_ids[i]: [x1, y1, x2, y2]})
+                                    print("Data Stored in mqtt \n", result)
+                                    client.publish("trafficflowyolov8", result)
+                                # Draw number plate information on the annotated frame
                             cv2.putText(frame, f'Plate: {plate_text}', (10, 30),
                                         cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 255, 0), 2, cv2.LINE_AA)
 
@@ -230,7 +247,14 @@ while cap.isOpened():
             resized_frame = cv2.resize(frame, (900, 600))  # Adjust the window size as needed
 
             cv2.imshow("YOLOv8 Tracking", resized_frame)
-
+            PREVIOUS_FRAME = None
+            PREVIOUS_RESULTS = None
+            if PREVIOUS_FRAME is not None and PREVIOUS_RESULTS not in track_history:
+                cv2.imwrite(
+                    "/home/nawin/Projects/trafficflowyolov8/failed_frames/" + f"previous_results_{COUNT}" + ".jpg", 
+                    PREVIOUS_FRAME)
+            PREVIOUS_RESULTS = track_ids
+            PREVIOUS_FRAME = resized_frame
         # Break the loop if 'q' is pressed
         if cv2.waitKey(1) & 0xFF == ord("q"):
             break
