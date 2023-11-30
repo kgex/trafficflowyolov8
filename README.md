@@ -21,3 +21,18 @@ Follow these simple steps to get started with TrafficFlow:
    ```bash
    git clone https://github.com/kgex/trafficflowyolov8
 
+2. **Navigate to the Source Directory**
+   ```bash
+   cd trafficflowyolov8/src/
+3. **Install Requirements:**
+   ```bash
+   pip install -r requirements.txt
+
+4. **Run the Code:**
+   ```bash
+   python final.py
+
+
+
+
+
