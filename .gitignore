@@ -5,4 +5,3 @@ src/__pycache__
 *.mp4
 *.pth
 venv/*
-```
