@@ -1,0 +1,38 @@
+[flake8]
+# Set the maximum line length (79 characters is the default)
+max-line-length = 79
+
+# Ignore certain errors or warnings
+ignore =
+    # E203: Whitespace before ':' (not PEP8 compliant, but conflicts with black)
+    E203,
+    # E501: Line too long (handled by black)
+    E501,
+    # W503: Line break occurred before a binary operator (handled by black)
+    W503
+
+# Specify additional files or directories to exclude from linting
+exclude =
+    .git,
+    __pycache__,
+    venv,
+    env,
+    .venv
+
+# Select the error codes you want Flake8 to check
+select =
+    # C: McCabe complexity
+    C,
+    # E: PEP8 errors
+    E,
+    # F: PyFlakes errors
+    F,
+    # W: PEP8 warnings
+    W
+
+# Enable certain plugins
+plugins =
+    # flake8-docstrings: Check docstring conventions
+    flake8-docstrings>=1.5.0,
+    # flake8-bugbear: Additional checks on top of flake8
+    flake8-bugbear>=21.9.0
