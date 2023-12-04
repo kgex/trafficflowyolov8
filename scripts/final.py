@@ -4,6 +4,7 @@ import asyncio
 import socket
 import math
 import pickle
+import time
 import sys
 import os
 import re
@@ -30,8 +31,8 @@ input_dir = os.path.join(root, "input/")
 
 
 # Load the YOLOv8 model
-model = YOLO("/home/nawin/Projects/trafficflowyolov8/models/yolov8n.pt")
-model2 = YOLO("/home/nawin/Projects/trafficflowyolov8/models/best.pt")
+model = YOLO(models_dir +"yolov8n.pt")
+model2 = YOLO(models_dir +"best.pt")
 ocr = PaddleOCR(use_angle_cls=True, lang="en")
 
 
@@ -82,7 +83,7 @@ def convert_rgb_to_names(rgb_tuple):
     
     kdt_db = KDTree(rgb_values)
     distance, index = kdt_db.query(rgb_tuple)
-    return f'closest match: {names[index]}' 
+    return f'{names[index]}' 
 
 
 MAX_LENGTH = 65000
@@ -128,9 +129,11 @@ def send_frame(frame):
             sock.sendto(data, (HOST, PORT))
 
 # Define MQTT parameters
-client = mqtt.Client("trafficflowyolov8")
+topic_pub='v1/devices/me/telemetry'
+client = mqtt.Client()
+
+client.username_pw_set("5E6bHCnHUTJk6jwb2z69")
 client.connect('192.168.217.45', 1883, 1)
-client.username_pw_set("0ragedncigpak652ul72")
 
 
 # Define colors for different vehicles
@@ -144,7 +147,7 @@ color_dict = {2: (0, 255, 0),  # car
 track_history = defaultdict(lambda: [])
 
 # Open the video file
-VIDEO_PATH = "/home/nawin/Projects/trafficflowyolov8/input/input.mp4"
+VIDEO_PATH = "/home/nawin/Projects/kgx/trafficflowyolov8/input/input.mp4"
 
 cap = cv2.VideoCapture(VIDEO_PATH)
 
@@ -167,16 +170,18 @@ numberplate_df = DataFrame(columns=['class_id', 'vehicle_type', 'numberplate','c
 
 
 async def function_async2(plate_crop_img):
-    """ Function to extract the text from the number plate"""
+    print(plate_crop_img.shape)
     if plate_crop_img.shape[0] == 0 or plate_crop_img.shape[1] == 0:
-        return f'No Plate Detected for {track_ids}'
+        result = 'No Plate Detected'
+        return result
     else:
+        global plate_count
         data = Image.fromarray(cv2.cvtColor(plate_crop_img, cv2.COLOR_BGR2RGB))
         data.save('Non.png')
         text = ocr.ocr('Non.png')
         result = ''
-        for idx, value in enumerate(text):
-            res = value
+        for idx in range(len(text)):
+            res = text[idx]
             if res is not None:
                 for line in res:
                     result += (line[1][0])
@@ -210,13 +215,15 @@ while cap.isOpened():
                     cv2.rectangle(frame, (x1, y1), (x2, y2), color, THICKNESS)
                     # Display class name in the top of the bounding box
                     if cls == 2:
-                        class_name = f"Car: {cls}"
+                        class_name = "Car"
                     elif cls == 3:
-                        class_name = f"Bike: {cls}"
+                        class_name = "Bike"
                     elif cls == 5:
-                        class_name = f"Bus: {cls}"
+                        class_name = "Bus"
                     elif cls == 7:
-                        class_name = f"Truck: {cls}"
+                        class_name = "Truck"
+                    else:
+                        class_name = "Unknown"
                     cv2.putText(
                         frame, class_name, (x1, y1 - 10), 
                         cv2.FONT_HERSHEY_SIMPLEX, 0.5, color, THICKNESS
@@ -224,10 +231,8 @@ while cap.isOpened():
                 if y2 >700:
                 # Numberplate Identification
                     cropped_img = frame[y1:y2, x1:x2]
-                    # dominant_color = extract_dominant_color(cropped_img, k=1)[0]
-                    # color = convert_rgb_to_names(dominant_color)
-                    # print(color)
-                    # cv2.imshow("cropped", cropped_img)
+                    dominant_color = extract_dominant_color(cropped_img, k=1)[0]
+                    color = convert_rgb_to_names(dominant_color)
                     result_new = model2(cropped_img)
                     for i in range(len(result_new[0].boxes)):
                         if track_history.get(track_ids[i]) is None:
@@ -239,13 +244,17 @@ while cap.isOpened():
                                 h = h.cpu().numpy().astype(np.int32)
                                 # cropping the image to pass it to the ocr model.
                                 crop_img = cropped_img[y:h, x:w]
-                                plate_text = asyncio.run(function_async2(crop_img))
-                                print(f'Plate Text:{plate_text}, Color:{color}, Time:{datetime.now()}, Type: {class_name}')
-                                if Checknumberplate(plate_text):
-                                    result = f"{track_ids[i]}, {class_name}, {plate_text}, {color}, {datetime.now()}"
-                                    track_history.update({track_ids[i]: [x1, y1, x2, y2]})
-                                    print("Data published in mqtt \n", result)
-                                    client.publish("trafficflowyolov8", result)
+                                loop = asyncio.get_event_loop()
+                                plate_text = loop.run_until_complete(function_async2(crop_img))
+                                print(type(plate_text), plate_text)                          
+                                track_history.update({track_ids[i]: [x1, y1, x2, y2]})
+                                track_id = 566    # track_ids[i]
+                                plate_text_send = "None" if plate_text == '' else plate_text #"TN66BB8902" # str(plate_text) #
+                                result = "{" + "vehicle_id" + ":" + str(track_ids[i]) + "," + "vehicle_type" + ":" + str(class_name) + "," + "color" + ":" + str(color) + "," "numplate" + ":" + str(plate_text_send) + "}"    
+                                print("Data published in mqtt \n", result)
+
+                                client.publish(topic_pub, result)
+                                time.sleep(2)
                                 # Draw number plate information on the annotated frame
                                 cv2.putText(frame, f'Plate: {plate_text}', (10, 30),
                                             cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 255, 0), 2, cv2.LINE_AA)
