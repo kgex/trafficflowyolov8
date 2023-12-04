@@ -54,21 +54,21 @@ def Checknumberplate(Numplate):
         return False
    
 
-# def extract_dominant_color(image, k=1):
-#     """Convert the image from BGR to RGB"""
-#     image_rgb = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
+def extract_dominant_color(image, k=1):
+    """Convert the image from BGR to RGB"""
+    image_rgb = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
 
-#     # Reshape the image to be a list of pixels
-#     pixels = image_rgb.reshape((-1, 3))
+    # Reshape the image to be a list of pixels
+    pixels = image_rgb.reshape((-1, 3))
 
-#     # Apply k-means clustering
-#     kmeans = KMeans(n_clusters=k)
-#     kmeans.fit(pixels)
+    # Apply k-means clustering
+    kmeans = KMeans(n_clusters=k)
+    kmeans.fit(pixels)
 
-#     # Get the dominant color(s)
-#     dominant_colors = kmeans.cluster_centers_.astype(int)
+    # Get the dominant color(s)
+    dominant_colors = kmeans.cluster_centers_.astype(int)
 
-#     return dominant_colors
+    return dominant_colors
     
 def convert_rgb_to_names(rgb_tuple):
     """Function to convert the rgb colors to its respective names."""    
@@ -129,7 +129,9 @@ def send_frame(frame):
 
 # Define MQTT parameters
 client = mqtt.Client("trafficflowyolov8")
-client.connect("broker.hivemq.com", 1883, 60)
+client.connect('192.168.217.45', 1883, 1)
+client.username_pw_set("0ragedncigpak652ul72")
+
 
 # Define colors for different vehicles
 color_dict = {2: (0, 255, 0),  # car
