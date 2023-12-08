@@ -1,6 +1,8 @@
 """Vehicle and Number Plate Detection Program
 
-This program uses YOLOv8 for vehicle detection and PaddleOCR for number plate recognition in a video stream.
+This program uses YOLOv8 for vehicle detection and PaddleOCR for number plate 
+recognition in a video stream.
+
 The detected information is then published to a MQTT server.
 
 Requirements:
@@ -12,7 +14,8 @@ Requirements:
 - Scikit-learn
 - Pandas
 
-Note: Make sure the required libraries are installed before running the program.
+Note: Make sure the required libraries are installed using
+requirements.txt file before running the program.
 
 """
 from collections import defaultdict
@@ -24,14 +27,7 @@ import time
 import sys
 import os
 import re
-
-root = os.path.join(os.getcwd())
-sys.path.append(root)
-models_dir = os.path.join(root, "models/")
-input_dir = os.path.join(root, "input/")
-
 from datetime import datetime
-from deep_sort_realtime.deepsort_tracker import DeepSort
 from scipy.spatial import KDTree
 from webcolors import CSS3_HEX_TO_NAMES, hex_to_rgb
 import paho.mqtt.client as mqtt
@@ -43,20 +39,25 @@ import cv2
 from sklearn.cluster import KMeans
 from pandas import DataFrame
 
+# Setting up the root directory
+root = os.path.join(os.getcwd())
+sys.path.append(root)
+models_dir = os.path.join(root, "models/")
+input_dir = os.path.join(root, "input/")
+
 # Load the YOLOv8 model
 model = YOLO(models_dir + "yolov8n.pt")
 # model = YOLO("/home/nawin/Projects/kgx/trafficflowyolov8/models/vehicle.pt")
 model2 = YOLO(models_dir + "best.pt")
-tracker = DeepSort(max_age=30)
 ocr = PaddleOCR(use_angle_cls=True, lang="en")
 
 # Define MQTT parameters
-topic_pub = 'v1/devices/me/telemetry'
+TOPIC = 'v1/devices/me/telemetry'
 client = mqtt.Client()
 
 # client.username_pw_set("0tdnwetjCarO9XFvDGVh")
 client.username_pw_set("Z2pU7qUneWGK070mryjO") # demo.thingsboard.io
-# # client.connect('192.168.229.20', 1883, 1)
+# client.connect('192.168.229.20', 1883, 1)
 client.connect("mqtt.thingsboard.cloud", 1883, 60)
 
 # Define colors for different vehicles
@@ -69,9 +70,9 @@ color_dict = {2: (0, 255, 0),  # car
 # to display the vehicle count
 COUNT = 0
 
-
 # Track history dictionary
 track_history = defaultdict(lambda: [])
+track_ids = []
 
 # Open the video file
 VIDEO_PATH = "/home/nawin/Projects/kgx/trafficflowyolov8/input/input.mp4"
@@ -89,20 +90,20 @@ roi_line_color = (0, 255, 0)  # Green color
 
 
 
-def Regex(Numplate):
+def regex(numplate):
     """Function to check if the number plate is valid or not"""
     # Defining the regular expression
     patt = "^[A-Z]{2}[ -]?[0-9]{2}[ -]?[A-Z]{1,2}[ -]?[0-9]{4}$"
 
     # When the string is empty
-    if not Numplate:
+    if not numplate:
         return False
 
-    if len(Numplate) == 0:
+    if len(numplate) == 0:
         return False
 
     # Return the answer after validating the number plate
-    if re.match(patt, Numplate):
+    if re.match(patt, numplate):
         return True
     else:
         return False
@@ -191,48 +192,50 @@ while cap.isOpened():
                           THICKNESS
                     )
 
-                if y2 >700:
-                    cropped_img = frame[y1:y2, x1:x2]
+            if y2 >700 and i < len(track_ids) and track_history.get(track_ids[i]) is None:
+                cropped_img = frame[y1:y2, x1:x2]
+                #The code to extract the dominant color from the cropped image
+                dominant_color = extract_dominant_color(cropped_img, k=1)[0]
+                color = convert_rgb_to_names(dominant_color)
+                
+                # Numberplate Identification
+                result_new = model2(cropped_img)
 
-                    #The code to extract the dominant color from the cropped image
-                    dominant_color = extract_dominant_color(cropped_img, k=1)[0]
-                    color = convert_rgb_to_names(dominant_color)
-                    
-                    # Numberplate Identification
-                    result_new = model2(cropped_img)
+                """If No number plate is detected the vehicle details will be sent
+                to the server with numberplate as none"""
+                if len(result_new[0].boxes) == 0:
+                    COUNT += 1
+                    RESULT = "{" + "vehicle_id" + ":" + str(COUNT) + "," + "vehicle_type" + ":" + str(CLASS_NAME) + "," + "color" + ":" + str(color) + "," "numplate" + ":" + "None" + "}"
+                    track_history.update({track_ids[i]: [x1, y1, x2, y2]})                  
+                    print("Data published in mqtt \n", RESULT)
+                    client.publish(TOPIC, RESULT)
+                    continue
 
-                    ## If No number plate is detected the vehicle details will be sent to the server with numberplate as none
-                    if track_history.get(track_ids[i]) is None and len(result_new[0].boxes) == 0:
-                        COUNT += 1
-                        RESULT = "{" + "vehicle_id" + ":" + str(COUNT) + "," + "vehicle_type" + ":" + str(CLASS_NAME) + "," + "color" + ":" + str(color) + "," "numplate" + ":" + "None" + "}"                                        
-                        track_history.update({track_ids[i]: [x1, y1, x2, y2]})                  
-                        print("Data published in mqtt \n", RESULT)
-                        client.publish(topic_pub, RESULT)
-                        continue
+                # Processing numberplate detections
+                for i in range(len(result_new[0].boxes)):
+                    if result_new[0].boxes is not None and len(result_new[0].boxes.xyxy) > 0:
+                        x, y, w, h = result_new[0].boxes.xyxy[0]
+                        x = x.cpu().numpy().astype(np.int32)
+                        y = y.cpu().numpy().astype(np.int32)
+                        w = w.cpu().numpy().astype(np.int32)
+                        h = h.cpu().numpy().astype(np.int32)
 
-                    # Processing numberplate detections
-                    for i in range(len(result_new[0].boxes)):
-                        if track_history.get(track_ids[i]) is None:
-                            if result_new[0].boxes is not None and len(result_new[0].boxes.xyxy) > 0:
-                                x, y, w, h = result_new[0].boxes.xyxy[0]
-                                x = x.cpu().numpy().astype(np.int32)
-                                y = y.cpu().numpy().astype(np.int32)
-                                w = w.cpu().numpy().astype(np.int32)
-                                h = h.cpu().numpy().astype(np.int32)
+                        # cropping the image to pass it to the ocr model.
+                        crop_img = cropped_img[y:h, x:w]
+                        loop = asyncio.get_event_loop()
+                        plate_text = loop.run_until_complete(function_async2(crop_img))
 
-                                # cropping the image to pass it to the ocr model.
-                                crop_img = cropped_img[y:h, x:w]
-                                loop = asyncio.get_event_loop()
-                                plate_text = loop.run_until_complete(function_async2(crop_img))
-
-                                # Performing numberplate regex validation before sending it to the server
-                                if Regex(plate_text):
-                                    COUNT += 1
-                                    print(type(plate_text), plate_text)                          
-                                    track_history.update({track_ids[i]: [x1, y1, x2, y2]})
-                                    RESULT = "{" + "vehicle_id" + ":" + str(COUNT) + "," + "vehicle_type" + ":" + str(CLASS_NAME) + "," + "color" + ":" + str(color) + "," "numplate" + ":" + str(plate_text) + "}"    
-                                    print("Data published in mqtt \n", RESULT)
-                                    client.publish(topic_pub, RESULT)
+                        """
+                        Performing numberplate regex 
+                        validation before sending it to the server
+                        """                
+                        if regex(plate_text):
+                            COUNT += 1
+                            print(type(plate_text), plate_text)                          
+                            track_history.update({track_ids[i]: [x1, y1, x2, y2]})
+                            RESULT = "{" + "vehicle_id" + ":" + str(COUNT) + "," + "vehicle_type" + ":" + str(CLASS_NAME) + "," + "color" + ":" + str(color) + "," "numplate" + ":" + str(plate_text) + "}"    
+                            print("Data published in mqtt \n", RESULT)
+                            client.publish(TOPIC, RESULT)
 
             # Draw number plate information on the annotated frame
             cv2.putText(frame, f'Time: {datetime.now()}', (10, 30),
@@ -242,8 +245,10 @@ while cap.isOpened():
             resized_frame = cv2.resize(frame, (900, 600))  # Adjust the window size as needed
             cv2.imshow("YOLOv8 Tracking", resized_frame)
             normalized_image = resized_frame.astype(np.float32) / 255.0
-            blob = cv2.dnn.blobFromImage(normalized_image, 1 / 255.0, (416, 416), swapRB=True, crop=False)
-            # client.publish(topic_pub, blob)
+            blob = cv2.dnn.blobFromImage(
+                normalized_image, 1 / 255.0, (416, 416), 
+                swapRB = True, crop = False)
+
         # Break the loop if 'q' is pressed
         if cv2.waitKey(1) & 0xFF == ord("q"):
             break
@@ -254,3 +259,5 @@ while cap.isOpened():
 # Release the video capture object, close the display window, and release the output video
 cap.release()
 cap.destroyAllWindows()
+
+# End-of-file (EOF)
