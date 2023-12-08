@@ -8,6 +8,7 @@ TrafficFlow, developed by [KGXperience](https://github.com/kgex), is an innovati
 - [Getting Started](#getting-started)
 - [Architecture](#Architecture)
 
+
 ## Getting Started
 
 Follow these simple steps to get started with TrafficFlow:
@@ -53,3 +54,4 @@ After successful identification of number plates, the architecture integrates Pa
 The final step involves forwarding the extracted vehicle details to a Thingsboard server using the MQTT (Message Queuing Telemetry Transport) protocol. This ensures seamless and efficient communication between the detection system and the Thingsboard server, facilitating real-time updates and storage of pertinent vehicle information.
 
 This comprehensive architecture enhances the capabilities of the system, providing a robust solution for automated vehicle surveillance, number plate recognition, and efficient data integration with the Thingsboard platform.
+
