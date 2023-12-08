@@ -1,87 +1,57 @@
 # TrafficFlow 
 
-![TrafficFlow Logo](https://github.com/kgex/trafficflowyolov8/logo.png)
+![KGX Logo](https://github.com/kgex/trafficflowyolov8/kgx_logo.png)
 
-The Traffic Flow project at KGISL utilizes cutting-edge technologies like DeepSort for precise object tracking and ANPR/OCR for license plate recognition. This revolutionizes vehicle monitoring on campus by extracting vehicle images with DeepSort, analyzing them through ANPR/OCR for accurate vehicle numbers and counts, and ensuring real-time data processing and precise movement tracking. Integrating MQTT and Thingsboard establishes a swift data transmission system, facilitating instant vehicle counts, Vehicle type, Number plate value, and Vehicle color along with a timestamp. This significantly enhances safety measures and optimizes traffic flow at KGISL, contributing to a smarter, more secure educational campus.
+TrafficFlow, developed by [KGXperience](https://github.com/kgex), is an innovative project designed for the automated surveillance of a given region. This sophisticated system facilitates the tracking of vehicles entering and exiting the area by capturing and analyzing their license plates. Additionally, TrafficFlow offers comprehensive data, including the precise times of arrival and departure for each vehicle within the specified region.
 
 ## Table of Contents
 - [Getting Started](#getting-started)
-- [Features](#features)
-- [Overall Architecture](#overall-architecture)
-- [Acknowledgments](#acknowledgments)
-- [Contact](#contact)
+- [Architecture](#Architecture)
 
 
 ## Getting Started
 
 Follow these simple steps to get started with TrafficFlow:
 
-1. **Clone the Repository:**
-   ```bash
+1. *Clone the Repository:* 
+   ```
    git clone https://github.com/kgex/trafficflowyolov8
+   ```
 
-2. **Install Requirements:**
-   ```bash
+2. *Install Requirements:*
+   ```
    pip install -r requirements.txt
+   ```
 
-3. **Run the Code:**
-   ```bash
-   python scripts/final.py
+3. *Run the Code:*
+   ```
+   python scripts/main.py
+   ```
 
-## Features
+## Architecture
 
-1. DeepSort Integration for Object Tracking: Utilizing DeepSort technology to achieve precise
-   object tracking within video feeds, allowing for accurate monitoring of vehicle movements.
+![Architecture](https://github.com/kgex/trafficflowyolov8/assets/Architecture.png)
 
-   ![Example from our model](https://github.com/kgex/trafficflowyolov8/logo.png)
 
-3. ANPR/OCR for License Plate Recognition: Implementing Automatic Number Plate Recognition
-   (ANPR) and Optical Character Recognition (OCR) to accurately extract and process license
-   plate information in real time.
+### YOLOv8 Vehicle Detection System
 
-   ![example from our model](https://github.com/kgex/trafficflowyolov8/logo.png)
+The code architecture is centered around YOLOv8, a state-of-the-art object detection model, specifically tailored for vehicle detection. The process involves two sequential YOLOv8 models, each serving a distinct purpose.
 
-5. Dynamic Dashboard for Insights: Creating a dynamic dashboard that visualizes and provides
-   insights derived from the tracked data, offering real-time information on vehicle counts,
-   types, and movement patterns.
+1. **Vehicle Detection Model:**
+    - The first YOLOv8 model is dedicated to detecting vehicles within a given scene or region.
+    - Upon successful detection, the identified vehicles are then forwarded to the next stage for further analysis.
 
-   ![example from model](https://github.com/kgex/trafficflowyolov8/logo.png)
+2. **Number Plate Detection Model:**
+    - The second YOLOv8 model takes the previously detected vehicles and focuses on locating and extracting number plates from each vehicle.
+    - This enables a detailed analysis of vehicle-specific information.
 
-## Overall Architecture
+### PaddleOCR for Text Extraction
 
-1. **CCTV Camera Stream:**
-   - Provides the video feed capturing cars, trucks, motorcycles, and buses.
+After successful identification of number plates, the architecture integrates PaddleOCR, a powerful Optical Character Recognition (OCR) tool. PaddleOCR is employed to extract text from the detected number plates, enabling the retrieval of alphanumeric details.
 
-2. **Frame Processing Module:**
-   - Receives and processes frames from the camera stream.
+### Integration with Thingsboard Server using MQTT Protocol
 
-3. **Vehicle Detection Module (Object Detection):**
-   - Identifies vehicles within the defined Region of Interest (ROI).
+The final step involves forwarding the extracted vehicle details to a Thingsboard server using the MQTT (Message Queuing Telemetry Transport) protocol. This ensures seamless and efficient communication between the detection system and the Thingsboard server, facilitating real-time updates and storage of pertinent vehicle information.
 
-4. **Vehicle Classification Module:**
-   - Classifies detected vehicles into different types (cars, trucks, motorcycles, and buses) within the ROI.
+This comprehensive architecture enhances the capabilities of the system, providing a robust solution for automated vehicle surveillance, number plate recognition, and efficient data integration with the Thingsboard platform.
 
-5. **Number Plate and Vehicle Attributes Detection Module:**
-   - Performs number plate detection using OCR and extracts vehicle attributes within the ROI.
-
-6. **ROI Management:**
-   - Defines and manages the Region of Interest within the frame for specific area analysis.
-   -![Example Flow chart](https://github.com/kgex/trafficflowyolov8/logo.png)
-
-7. **Decision Logic and Database Interaction:**
-   - Manages decision-making based on detected vehicles, number plate data, and validation outcomes within the ROI.
-   - Stores vehicle-related data in the database.
-
-8. **Database:**
-   - Stores collected data including vehicle timestamps, IDs, types, attributes, and number plates within the ROI.
-
-9. **MQTT Broker:**
-   - Facilitates communication between the database and Thingboard Dashboard for ROI-related data transfer.
-
-10. **Thingboard Dashboard:**
-    - Visualizes data received through MQTT related to the ROI for monitoring and analysis.
-
-11. **Storage System for Unsuccessful Images:**
-    - Stores images that failed validation or processing within the ROI for further analysis.
-
-  
