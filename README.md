@@ -66,6 +66,7 @@ Follow these simple steps to get started with TrafficFlow:
 
 6. **ROI Management:**
    - Defines and manages the Region of Interest within the frame for specific area analysis.
+   -![Example Flow chart](https://github.com/kgex/trafficflowyolov8/logo.png)
 
 7. **Decision Logic and Database Interaction:**
    - Manages decision-making based on detected vehicles, number plate data, and validation outcomes within the ROI.
@@ -83,10 +84,4 @@ Follow these simple steps to get started with TrafficFlow:
 11. **Storage System for Unsuccessful Images:**
     - Stores images that failed validation or processing within the ROI for further analysis.
 
-## Workflow:
-
-1. **Camera Stream Input:**
-   - The system continuously receives frames capturing vehicles.
-
-2. **Frame Processing and ROI Analysis:**
   
