@@ -49,34 +49,44 @@ Follow these simple steps to get started with TrafficFlow:
 
 ## Overall Architecture
 
-1. CCTV Camera Stream:
-Provides the video feed for the system, capturing cars, trucks, motorcycles, and buses.
+1. **CCTV Camera Stream:**
+   - Provides the video feed capturing cars, trucks, motorcycles, and buses.
 
-2. Frame Processing Module:
-Receives and processes individual frames from the camera stream.
+2. **Frame Processing Module:**
+   - Receives and processes frames from the camera stream.
 
-3. Vehicle Detection Module (Object Detection):
-Utilizes object detection algorithms to identify and localize vehicles within the defined Region of Interest (ROI).
+3. **Vehicle Detection Module (Object Detection):**
+   - Identifies vehicles within the defined Region of Interest (ROI).
 
-4. Vehicle Classification Module:
-Classifies detected vehicles into cars, trucks, motorcycles, and buses based on their features and size within the ROI.
+4. **Vehicle Classification Module:**
+   - Classifies detected vehicles into different types (cars, trucks, motorcycles, and buses) within the ROI.
 
-5. Number Plate and Vehicle Attributes Detection Module:
-Performs number plate detection using OCR (Optical Character Recognition) and extracts vehicle attributes where possible within the ROI.
+5. **Number Plate and Vehicle Attributes Detection Module:**
+   - Performs number plate detection using OCR and extracts vehicle attributes within the ROI.
 
-6. ROI Management:
-Defines and manages the Region of Interest within the frame for specific area analysis.
-![example ROI logic](https://github.com/kgex/trafficflowyolov8/logo.png)
+6. **ROI Management:**
+   - Defines and manages the Region of Interest within the frame for specific area analysis.
 
-8. Decision Logic and Database Interaction:
-Manages decision-making based on the detected vehicles, number plate data, and validation outcomes within the ROI.
-Stores and manages vehicle-related data in the database.
+7. **Decision Logic and Database Interaction:**
+   - Manages decision-making based on detected vehicles, number plate data, and validation outcomes within the ROI.
+   - Stores vehicle-related data in the database.
 
-9. Database:
-Stores collected data, including vehicle timestamps, IDs, types, attributes, and number plates within the ROI.
+8. **Database:**
+   - Stores collected data including vehicle timestamps, IDs, types, attributes, and number plates within the ROI.
 
-10. MQTT Broker:
-Facilitates communication between the database and Thingboard Dashboard for data transfer related to the ROI.
+9. **MQTT Broker:**
+   - Facilitates communication between the database and Thingboard Dashboard for ROI-related data transfer.
 
-11. Thingboard Dashboard:
-Receives data through MQTT for visualization and monitoring purposes related to the ROI.
+10. **Thingboard Dashboard:**
+    - Visualizes data received through MQTT related to the ROI for monitoring and analysis.
+
+11. **Storage System for Unsuccessful Images:**
+    - Stores images that failed validation or processing within the ROI for further analysis.
+
+## Workflow:
+
+1. **Camera Stream Input:**
+   - The system continuously receives frames capturing vehicles.
+
+2. **Frame Processing and ROI Analysis:**
+  
