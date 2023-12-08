@@ -1,14 +1,15 @@
 # TrafficFlow 
 
+<p align="center">
+  <img src="https://github.com/kgex/trafficflowyolov8/assets/83204531/ad252a50-f3b9-4960-807e-5b52b679c656" alt="KGX_Logo" width = 100 height = 54>
+</p>
+
 TrafficFlow, developed by [KGXperience](https://github.com/kgex), is an innovative project designed for the automated surveillance of a given region. This sophisticated system facilitates the tracking of vehicles entering and exiting the area by capturing and analyzing their license plates. Additionally, TrafficFlow offers comprehensive data, including the precise times of arrival and departure for each vehicle within the specified region.
 
 <p align="center">
   <img src="https://github.com/kgex/trafficflowyolov8/assets/83204531/3426b516-66ae-425b-af1f-21766814d3c4" alt="Sample">
 </p>
 
-<p align="center">
-  <img src="https://github.com/kgex/trafficflowyolov8/assets/83204531/ad252a50-f3b9-4960-807e-5b52b679c656" alt="KGX_Logo" width = 100 height = 54>
-</p>
 
 ## Table of Contents
 - [Getting Started](#getting-started)
