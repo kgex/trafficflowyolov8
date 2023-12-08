@@ -6,4 +6,5 @@ src/__pycache__
 *.pth
 venv/*
 .venv/*
+*.png
 ```
