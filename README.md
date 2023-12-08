@@ -9,7 +9,7 @@ TrafficFlow, developed by [KGXperience](https://github.com/kgex), is an innovati
 
 ## Table of Contents
 - [Getting Started](#getting-started)
-- [Architecture](#Architecture)
+- [Architecture](#architecture)
 
 
 ## Getting Started
@@ -57,8 +57,12 @@ The final step involves forwarding the extracted vehicle details to a Thingsboar
 
 This comprehensive architecture enhances the capabilities of the system, providing a robust solution for automated vehicle surveillance, number plate recognition, and efficient data integration with the Thingsboard platform.
 
-
-Developed by 
 <p align="center">
+  <img src="https://github.com/kgex/trafficflowyolov8/assets/83204531/c6831336-7c03-4f02-9971-e1e96dffa526" alt="Dashboard">
+</p>
+
+
+## Developed by 
+<p align="left">
   <img src="https://github.com/kgex/trafficflowyolov8/assets/83204531/ad252a50-f3b9-4960-807e-5b52b679c656" alt="KGX_Logo" width = 100 height = 54>
 </p>
