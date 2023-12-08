@@ -1,8 +1,8 @@
-# TrafficFlow - Intelligent Traffic Analytical System
+# TrafficFlow 
 
 ![TrafficFlow Logo](https://github.com/kgex/trafficflowyolov8/logo.png)
 
-TrafficFlow is an advanced project developed by [kgexperience](https://github.com/kgex) that automates the surveillance of a region. This powerful system is designed to track incoming and outgoing vehicles based on their number plates, providing valuable information about their time of arrival and departure from a specific area.
+The Traffic Flow project at KGISL utilizes cutting-edge technologies like DeepSort for precise object tracking and ANPR/OCR for license plate recognition. This revolutionizes vehicle monitoring on campus by extracting vehicle images with DeepSort, analyzing them through ANPR/OCR for accurate vehicle numbers and counts, ensuring real-time data processing and precise movement tracking. The integration of MQTT and FastAPI establishes a swift data transmission system, facilitating instant updates on vehicle counts and types. This significantly enhances safety measures and optimizes traffic flow at KGISL, contributing to a smarter, more secure educational campus.
 
 ## Table of Contents
 - [Getting Started](#getting-started)
