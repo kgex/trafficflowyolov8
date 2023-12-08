@@ -7,6 +7,7 @@ The Traffic Flow project at KGISL utilizes cutting-edge technologies like DeepSo
 ## Table of Contents
 - [Getting Started](#getting-started)
 - [Features](#features)
+- [Overall Architecture](#overall-architecture)
 - [Acknowledgments](#acknowledgments)
 - [Contact](#contact)
 
@@ -46,3 +47,36 @@ Follow these simple steps to get started with TrafficFlow:
 
    ![example from model](https://github.com/kgex/trafficflowyolov8/logo.png)
 
+## Overall Architecture
+
+1. CCTV Camera Stream:
+Provides the video feed for the system, capturing cars, trucks, motorcycles, and buses.
+
+2. Frame Processing Module:
+Receives and processes individual frames from the camera stream.
+
+3. Vehicle Detection Module (Object Detection):
+Utilizes object detection algorithms to identify and localize vehicles within the defined Region of Interest (ROI).
+
+4. Vehicle Classification Module:
+Classifies detected vehicles into cars, trucks, motorcycles, and buses based on their features and size within the ROI.
+
+5. Number Plate and Vehicle Attributes Detection Module:
+Performs number plate detection using OCR (Optical Character Recognition) and extracts vehicle attributes where possible within the ROI.
+
+6. ROI Management:
+Defines and manages the Region of Interest within the frame for specific area analysis.
+![example ROI logic](https://github.com/kgex/trafficflowyolov8/logo.png)
+
+8. Decision Logic and Database Interaction:
+Manages decision-making based on the detected vehicles, number plate data, and validation outcomes within the ROI.
+Stores and manages vehicle-related data in the database.
+
+9. Database:
+Stores collected data, including vehicle timestamps, IDs, types, attributes, and number plates within the ROI.
+
+10. MQTT Broker:
+Facilitates communication between the database and Thingboard Dashboard for data transfer related to the ROI.
+
+11. Thingboard Dashboard:
+Receives data through MQTT for visualization and monitoring purposes related to the ROI.
