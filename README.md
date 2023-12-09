@@ -28,7 +28,7 @@ Follow these simple steps to get started with TrafficFlow:
 
 3. *Run the Code:*
    ```
-   python scripts/main.py
+   python scripts/main.py --input # 0 for webcam or path/to/video.mp4
    ```
 
 ## Architecture
