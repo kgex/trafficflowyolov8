@@ -20,13 +20,15 @@ Follow these simple steps to get started with TrafficFlow:
    ```
    git clone https://github.com/kgex/trafficflowyolov8
    ```
-
 2. *Install Requirements:*
    ```
    pip install -r requirements.txt
    ```
-
-3. *Run the Code:*
+3. Download Sample Video
+4. ```
+   gdown https://drive.google.com/uc?id=1_Lsve_tfnv5weRMnYE93K1aANWyoRk8E
+   ```
+4. *Run the Code:*
    ```
    python scripts/main.py --input # 0 for webcam or path/to/video.mp4
    ```
