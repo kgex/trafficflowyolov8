@@ -24,7 +24,7 @@ Follow these simple steps to get started with TrafficFlow:
    ```
    pip install -r requirements.txt
    ```
-3. Download Sample Video
+3. *Download Sample Video*
    ```
    gdown https://drive.google.com/uc?id=1_Lsve_tfnv5weRMnYE93K1aANWyoRk8E
    ```
