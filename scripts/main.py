@@ -111,18 +111,14 @@ def convert_rgb_to_names(rgb_tuple):
 
 async def function_async2(plate_crop_img):
     """Function to extract the number plate from the cropped image and pass it to the OCR model"""
-    data = Image.fromarray(cv2.cvtColor(plate_crop_img, cv2.COLOR_BGR2RGB)) 
-    data.save('Non.png')
-    text = ocr.ocr('Non.png')
-    result = ''
-    for idx, value in enumerate(text):
-        res = value
-        if res is not None:
-            for line in res:
-                result += (line[1][0])
-                confidence = line[1][1]
-                print('Numberplate: ', result, "Confidence", confidence)
-    return result
+    # data = Image.fromarray(cv2.cvtColor(plate_crop_img, cv2.COLOR_BGR2RGB)) 
+    # data.save('Non.png')
+    ocr_output = ocr.ocr(plate_crop_img)
+    # ocr output format = [[[[x1, y1], [x2, y2], [x3, y3], [x4, y4]], [text, confidence]]]
+    confidence = ocr_output[0][1][1]
+    numplate = ocr_output[0][1][0]
+    print(numplate, confidence)
+    return numplate
 
 def detect(cap):   
     """Function to detect vehicles and number plates in a video stream"""
