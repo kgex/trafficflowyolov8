@@ -34,21 +34,20 @@ from webcolors import CSS3_HEX_TO_NAMES, hex_to_rgb
 import paho.mqtt.client as mqtt
 import numpy as np
 from paddleocr import PaddleOCR
-from PIL import Image
 from ultralytics import YOLO
 import cv2
 from sklearn.cluster import KMeans
-from pandas import DataFrame
 
 # Setting up the root directory
 root = os.path.join(os.getcwd())
 sys.path.append(root)
 models_dir = os.path.join(root, "models/")
 input_dir = os.path.join(root, "input/")
+output_dir = os.path.join(root, "output/")
+dataset_dir = os.path.join(output_dir, "Dataset/")
 
 # Load the YOLOv8 model
 model = YOLO(models_dir + "yolov8n.pt")
-# model = YOLO("/home/nawin/Projects/kgx/trafficflowyolov8/models/vehicle.pt")
 model2 = YOLO(models_dir + "best.pt")
 ocr = PaddleOCR(use_angle_cls=True, lang="en")
 
@@ -56,9 +55,8 @@ ocr = PaddleOCR(use_angle_cls=True, lang="en")
 TOPIC = 'v1/devices/me/telemetry'
 client = mqtt.Client()
 
-# client.username_pw_set("0tdnwetjCarO9XFvDGVh")
-client.username_pw_set("Z2pU7qUneWGK070mryjO") # demo.thingsboard.io
-# client.connect('192.168.229.20', 1883, 1)
+
+client.username_pw_set("Z2pU7qUneWGK070mryjO")  
 client.connect("mqtt.thingsboard.cloud", 1883, 60)
 
 
@@ -79,6 +77,19 @@ def regex(numplate):
         return True
     else:
         return False
+    
+def convert_rgb_to_names(rgb_tuple):
+    """Function to convert the rgb colors to its respective names."""    
+    css3_db = CSS3_HEX_TO_NAMES
+    names = []
+    rgb_values = []
+    for color_hex, color_name in css3_db.items():
+        names.append(color_name)
+        rgb_values.append(hex_to_rgb(color_hex))
+    
+    kdt_db = KDTree(rgb_values)
+    distance, index = kdt_db.query(rgb_tuple)
+    return f'{names[index]}' 
 
 def extract_dominant_color(image, k=1):
     """Convert the image from BGR to RGB"""
@@ -94,29 +105,17 @@ def extract_dominant_color(image, k=1):
     # Get the dominant color(s)
     dominant_colors = kmeans.cluster_centers_.astype(int)
 
-    return dominant_colors
+    return convert_rgb_to_names(dominant_colors[0])
     
-def convert_rgb_to_names(rgb_tuple):
-    """Function to convert the rgb colors to its respective names."""    
-    css3_db = CSS3_HEX_TO_NAMES
-    names = []
-    rgb_values = []
-    for color_hex, color_name in css3_db.items():
-        names.append(color_name)
-        rgb_values.append(hex_to_rgb(color_hex))
-    
-    kdt_db = KDTree(rgb_values)
-    distance, index = kdt_db.query(rgb_tuple)
-    return f'{names[index]}' 
+
 
 async def function_async2(plate_crop_img):
     """Function to extract the number plate from the cropped image and pass it to the OCR model"""
-    # data = Image.fromarray(cv2.cvtColor(plate_crop_img, cv2.COLOR_BGR2RGB)) 
-    # data.save('Non.png')
-    ocr_output = ocr.ocr(plate_crop_img)
-    # ocr output format = [[[[x1, y1], [x2, y2], [x3, y3], [x4, y4]], [text, confidence]]]
-    confidence = ocr_output[0][1][1]
-    numplate = ocr_output[0][1][0]
+    ocr_output = ocr.ocr(plate_crop_img) # ocr output format = [[[[x1, y1], [x2, y2], [x3, y3], [x4, y4]], [text, confidence]]]
+    if ocr_output is None:
+        return None
+    confidence = ocr_output[0][0][1][1]
+    numplate = ocr_output[0][0][1][0]
     print(numplate, confidence)
     return numplate
 
@@ -134,8 +133,6 @@ def detect(cap):
 
     # Get video information (width, height, frames per second)
     width = int(cap.get(cv2.CAP_PROP_FRAME_WIDTH))
-    height = int(cap.get(cv2.CAP_PROP_FRAME_HEIGHT))
-    fps = int(cap.get(cv2.CAP_PROP_FPS))
 
     roi_line = [(0, 700), (width, 700)]
     roi_line_color = (0, 255, 0)  # Green color
@@ -156,11 +153,9 @@ def detect(cap):
 
             # Check if boxes are not None before accessing attributes
             if results[0].boxes is not None and len(results[0].boxes.xyxy) > 0:
-                boxes = results[0].boxes.xywh.cpu()
                 if results[0].boxes.id is not None:
                     track_ids = results[0].boxes.id.int().cpu().tolist()
                 for i in range(len(results[0].boxes)):
-                    conf = results[0].boxes.conf[i].int().cpu().tolist()
                     x1, y1, x2, y2 = map(int, results[0].boxes.xyxy.cpu()[i])
                     cls = results[0].boxes.cls[i].item()
                     # Draw bounding box based on the detected class
@@ -185,12 +180,12 @@ def detect(cap):
                             THICKNESS
                         )
 
-                if y2 >700 and i < len(track_ids) and track_history.get(track_ids[i]) is None:
+                if y2 > 700 and i < len(track_ids) and track_history.get(track_ids[i]) is None:
                     cropped_img = frame[y1:y2, x1:x2]
+                    cv2.imwrite(f"{dataset_dir}vehicle/vehicle_img{COUNT}.jpg", cropped_img)
                     #The code to extract the dominant color from the cropped image
-                    dominant_color = extract_dominant_color(cropped_img, k=1)[0]
-                    color = convert_rgb_to_names(dominant_color)
-                    
+                    color = extract_dominant_color(cropped_img, k=1)
+                                        
                     # Numberplate Identification
                     result_new = model2(cropped_img)
 
@@ -216,9 +211,10 @@ def detect(cap):
                             crop_img = cropped_img[y:h, x:w]
                             loop = asyncio.get_event_loop()
                             plate_text = loop.run_until_complete(function_async2(crop_img))
+                            cv2.imwrite(f"{dataset_dir}numberplate/numberplate_img{COUNT}.jpg", crop_img)
 
                             # If the numberplate is valid                
-                            if regex(plate_text):
+                            if plate_text is not None and regex(plate_text) == True:
                                 COUNT += 1
                                 print(type(plate_text), plate_text)                          
                                 track_history.update({track_ids[i]: [x1, y1, x2, y2]})
