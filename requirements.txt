@@ -27,5 +27,4 @@ paho-mqtt
 ultralytics
 scikit-learn
 filterpy==1.4.5
-fastapi
-uvicorn[standard]
+webcolors
