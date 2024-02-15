@@ -5,10 +5,10 @@
 * The object detection pipeline is built using YOLOv8 and the dashboard is built using Thingsboard server.
  
 
-   <div style="display: flex; justify-content: space-between;">
-      <img src="path/to/left_image.jpg" alt="Left Image" style="width: 45%;">
-      <img src="path/to/right_image.jpg" alt="Right Image" style="width: 45%;">
-   </div>
+  <div style="display: flex; justify-content: space-between;">
+     <img src="https://github.com/kgex/trafficflowyolov8/blob/5aeb7fb1502605762303f4af2d4a70e2287352bb/assets/sample_image.png" alt="Left Image" style="width: 45%;">
+     <img src="https://github.com/kgex/trafficflowyolov8/blob/5aeb7fb1502605762303f4af2d4a70e2287352bb/assets/Screenshot%202024-01-23%20184317.png" alt="Right Image" style="width: 45%;">
+  </div>
 
 ## Table of Contents
 - [Getting Started](#getting-started)
