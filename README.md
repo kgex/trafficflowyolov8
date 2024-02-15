@@ -58,7 +58,7 @@ The code architecture is centered around [YOLOv8](https://github.com/ultralytics
    |------------|-----------------|------------|-----------|----------|
    |  0.84073   |      1.0158     |   0.92726  |  0.88056  | 0.88054  |
 
-   ![Vehicle_model_metrics]()
+   ![Vehicle_model_metrics](https://github.com/kgex/trafficflowyolov8/blob/7a4392e7b8611efc53cd71b22b46ff2937c1a364/assets/vehicle_dataset_metrics.png)
 
 
 2. **Number Plate Detection Model:**
@@ -70,7 +70,7 @@ The code architecture is centered around [YOLOv8](https://github.com/ultralytics
    |------------|-----------------|-------------|-----------|------------|
    |  0.99308   |      1.1624     |   0.95279   |  0.95196  |  0.94387   |
 
-   ![Numberplate_model_metrics]()
+   ![Numberplate_model_metrics](https://github.com/kgex/trafficflowyolov8/blob/7a4392e7b8611efc53cd71b22b46ff2937c1a364/assets/numberplate_model_metrics.png)
 
 ### Integration with Thingsboard Server using MQTT Protocol
 
