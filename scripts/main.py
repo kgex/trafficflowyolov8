@@ -44,11 +44,11 @@ sys.path.append(root)
 models_dir = os.path.join(root, "models/")
 input_dir = os.path.join(root, "input/")
 output_dir = os.path.join(root, "output/")
-dataset_dir = os.path.join(output_dir, "Dataset/")
+dataset_dir = os.path.join(root, "Dataset/")
 
 # Load the YOLOv8 model
-model = YOLO(models_dir + "yolov8n.pt")
-model2 = YOLO(models_dir + "best.pt")
+model = YOLO(models_dir + "vehicle.pt")
+model2 = YOLO(models_dir + "numberplate_model_version_1.pt")
 ocr = PaddleOCR(use_angle_cls=True, lang="en")
 
 # Define MQTT parameters
@@ -56,7 +56,7 @@ TOPIC = 'v1/devices/me/telemetry'
 client = mqtt.Client()
 
 
-client.username_pw_set("Z2pU7qUneWGK070mryjO")  
+client.username_pw_set("Wv4tIZZnQWcHloo1V8de")  
 client.connect("mqtt.thingsboard.cloud", 1883, 60)
 
 
@@ -133,8 +133,9 @@ def detect(cap):
 
     # Get video information (width, height, frames per second)
     width = int(cap.get(cv2.CAP_PROP_FRAME_WIDTH))
+    height = int(cap.get(cv2.CAP_PROP_FRAME_HEIGHT))
 
-    roi_line = [(0, 700), (width, 700)]
+    roi_line = [(0, 1200), (width, 1200)]
     roi_line_color = (0, 255, 0)  # Green color
 
     # Track history dictionary
@@ -153,6 +154,7 @@ def detect(cap):
 
             # Check if boxes are not None before accessing attributes
             if results[0].boxes is not None and len(results[0].boxes.xyxy) > 0:
+                print("Vehicle Detected!!!!")
                 if results[0].boxes.id is not None:
                     track_ids = results[0].boxes.id.int().cpu().tolist()
                 for i in range(len(results[0].boxes)):
@@ -180,14 +182,17 @@ def detect(cap):
                             THICKNESS
                         )
 
-                if y2 > 700 and i < len(track_ids) and track_history.get(track_ids[i]) is None:
+                if y2 > 1200 and i < len(track_ids) and track_history.get(track_ids[i]) is None:
                     cropped_img = frame[y1:y2, x1:x2]
-                    cv2.imwrite(f"{dataset_dir}vehicle/vehicle_img{COUNT}.jpg", cropped_img)
+                    cv2.imwrite(f"{dataset_dir}vehicle_img{COUNT}.jpg", cropped_img)
                     #The code to extract the dominant color from the cropped image
                     color = extract_dominant_color(cropped_img, k=1)
                                         
                     # Numberplate Identification
                     result_new = model2(cropped_img)
+
+                    if result_new is not None:
+                        print("numberplate detected!!!!")
 
                     # If no numberplate is detected
                     if len(result_new[0].boxes) == 0:
@@ -211,10 +216,9 @@ def detect(cap):
                             crop_img = cropped_img[y:h, x:w]
                             loop = asyncio.get_event_loop()
                             plate_text = loop.run_until_complete(function_async2(crop_img))
-                            cv2.imwrite(f"{dataset_dir}numberplate/numberplate_img{COUNT}.jpg", crop_img)
 
                             # If the numberplate is valid                
-                            if plate_text is not None and regex(plate_text) == True:
+                            if plate_text is not None and i < len(track_ids) and regex(plate_text) == True:
                                 COUNT += 1
                                 print(type(plate_text), plate_text)                          
                                 track_history.update({track_ids[i]: [x1, y1, x2, y2]})

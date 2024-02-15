@@ -10,6 +10,7 @@ TrafficFlow, developed by [KGXperience](https://github.com/kgex), is an innovati
 ## Table of Contents
 - [Getting Started](#getting-started)
 - [Architecture](#architecture)
+- [Models Used](#models-used)
 
 
 ## Getting Started
@@ -37,21 +38,39 @@ Follow these simple steps to get started with TrafficFlow:
 
 ![Architecture](https://github.com/kgex/trafficflowyolov8/assets/83204531/ea5dfe51-8483-46f6-8eb9-0256a6f491fe)
 
+
+## Models Used
+
 ### YOLOv8 Vehicle Detection System
 
-The code architecture is centered around YOLOv8, a state-of-the-art object detection model, specifically tailored for vehicle detection. The process involves two sequential YOLOv8 models, each serving a distinct purpose.
+The code architecture is centered around [YOLOv8](https://github.com/ultralytics/ultralytics), a state-of-the-art object detection model, specifically tailored for vehicle detection. The process involves two sequential YOLOv8 models, each serving a distinct purpose.
 
 1. **Vehicle Detection Model:**
-    - The first YOLOv8 model is dedicated to detecting vehicles within a given scene or region.
-    - Upon successful detection, the identified vehicles are then forwarded to the next stage for further analysis.
+    - The first YOLOv8 model is dedicated to detect the incoming vehicles within a given region.
+    - The trained model will predict these particular classes:
+      * Bike
+      * Car
+      * Bus
+   - The model was trained using the incoming traffic of the institute and the following table illustrates the results of the training process.
+
+   
+   | Train Loss | Validation loss |    MaP     | Precision |  Recall  |
+   |------------|-----------------|------------|-----------|----------|
+   |  0.84073   |      1.0158     |   0.92726  |  0.88056  | 0.88054  |
+
+   ![Vehicle_model_metrics]()
+
 
 2. **Number Plate Detection Model:**
-    - The second YOLOv8 model takes the previously detected vehicles and focuses on locating and extracting number plates from each vehicle.
-    - This enables a detailed analysis of vehicle-specific information.
+    - The second YOLOv8 model takes the cropped output of the detected vehicles and focuses on detecting the number plates from each vehicle.
+    - The following table illustrated the results of the training process.
 
-### PaddleOCR for Text Extraction
 
-After the successful identification of number plates, the architecture integrates PaddleOCR, a powerful Optical Character Recognition (OCR) tool. PaddleOCR is employed to extract text from the detected number plates, enabling the retrieval of alphanumeric details.
+   | Train Loss | Validation loss |    MaP      | Precision |  Recall    |
+   |------------|-----------------|-------------|-----------|------------|
+   |  0.99308   |      1.1624     |   0.95279   |  0.95196  |  0.94387   |
+
+   ![Numberplate_model_metrics]()
 
 ### Integration with Thingsboard Server using MQTT Protocol
 
