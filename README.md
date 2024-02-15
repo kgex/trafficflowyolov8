@@ -1,16 +1,21 @@
-# TrafficFlow 
+# <div align="center">TrafficFlow</div> 
 
-TrafficFlow, developed by [KGXperience](https://github.com/kgex), is an innovative project designed for the automated surveillance of a given region. This sophisticated system facilitates the tracking of vehicles entering and exiting the area by capturing and analyzing their license plates. Additionally, TrafficFlow offers comprehensive data, including the precise times of arrival and departure for each vehicle within the specified region.
+* TrafficFlow is an open-source project developed by [KGXperience](https://github.com/kgex) designed for the automated vehicle surveillance of a given region. 
+* The project consists of an object detection pipeline that tracks the entry and exit of vehicles by keeping track of their numberplate.
+* The object detection pipeline is built using YOLOv8 and the dashboard is built using Thingsboard server.
+ 
 
-<p align="center">
-  <img src="https://github.com/kgex/trafficflowyolov8/assets/83204531/3426b516-66ae-425b-af1f-21766814d3c4" alt="Sample">
-</p>
-
+   <div style="display: flex; justify-content: space-between;">
+      <img src="path/to/left_image.jpg" alt="Left Image" style="width: 45%;">
+      <img src="path/to/right_image.jpg" alt="Right Image" style="width: 45%;">
+   </div>
 
 ## Table of Contents
 - [Getting Started](#getting-started)
-- [Architecture](#architecture)
-- [Models Used](#models-used)
+- [Documentation](#documentaion)
+- [Models](#models)
+- [Notebooks](#notebooks)
+- [Contact Us](#developed-by)
 
 
 ## Getting Started
@@ -34,16 +39,15 @@ Follow these simple steps to get started with TrafficFlow:
    python scripts/main.py --input # 0 for webcam or path/to/video.mp4
    ```
 
-## Architecture
+## <div align="center">Documentation</div>
+
 
 ![Architecture](https://github.com/kgex/trafficflowyolov8/assets/83204531/ea5dfe51-8483-46f6-8eb9-0256a6f491fe)
 
 
-## Models Used
+## <div align="center">Models</div> 
 
-### YOLOv8 Vehicle Detection System
-
-The code architecture is centered around [YOLOv8](https://github.com/ultralytics/ultralytics), a state-of-the-art object detection model, specifically tailored for vehicle detection. The process involves two sequential YOLOv8 models, each serving a distinct purpose.
+ [YOLOv8](https://github.com/ultralytics/ultralytics), a state-of-the-art object detection model, is specifically trained for vehicle detection and numberplate detection respectively. Both models will run sequentially in the pipeline and the resultant image will be passed to PaddlePaddleOCR model for numberplate extraction.
 
 1. **Vehicle Detection Model:**
     - The first YOLOv8 model is dedicated to detect the incoming vehicles within a given region.
@@ -72,18 +76,26 @@ The code architecture is centered around [YOLOv8](https://github.com/ultralytics
 
    ![Numberplate_model_metrics](https://github.com/kgex/trafficflowyolov8/blob/7a4392e7b8611efc53cd71b22b46ff2937c1a364/assets/numberplate_model_metrics.png)
 
-### Integration with Thingsboard Server using MQTT Protocol
 
-The final step involves forwarding the extracted vehicle details to a Thingsboard server using the MQTT (Message Queuing Telemetry Transport) protocol. This ensures seamless and efficient communication between the detection system and the Thingsboard server, facilitating real-time updates and storage of pertinent vehicle information.
+## Notebooks
 
-This comprehensive architecture enhances the capabilities of the system, providing a robust solution for automated vehicle surveillance, number plate recognition, and efficient data integration with the Thingsboard platform.
 
-<p align="center">
-  <img src="https://github.com/kgex/trafficflowyolov8/assets/83204531/c6831336-7c03-4f02-9971-e1e96dffa526" alt="Dashboard">
-</p>
+| **Description**         | **Link**           |
+|-------------------------|--------------------|
+|  Vehicle Detection      | <a href="https://colab.research.google.com/drive/1GKBfgJgSN4GaUiJBrRYfB95wKsbeqtdG?usp=sharing"><img src="https://colab.research.google.com/assets/colab-badge.svg" alt="Open In Colab"></a>      |
+|  Number Plate Detection | <a href="https://colab.research.google.com/drive/1-VDVWyfE80405bOSMJnc0fYwJBDfaeOM?usp=sharing"><img src="https://colab.research.google.com/assets/colab-badge.svg" alt="Open In Colab"></a>        |
 
 
 ## Developed by 
-<p align="left">
+<p align="center">
   <img src="https://github.com/kgex/trafficflowyolov8/assets/83204531/ad252a50-f3b9-4960-807e-5b52b679c656" alt="KGX_Logo" width = 100 height = 54>
 </p>
+<div align="center">
+  <a href="https://github.com/kgex"><img src="https://github.com/ultralytics/assets/raw/main/social/logo-social-github.png" width="2%" alt="KGX GitHub"></a>
+  <img src="https://github.com/ultralytics/assets/raw/main/social/logo-transparent.png" width="2%" alt="space">
+  <a href="https://www.linkedin.com/company/kgx/"><img src="https://github.com/ultralytics/assets/raw/main/social/logo-social-linkedin.png" width="2%" alt="KGX LinkedIn"></a>
+  <img src="https://github.com/ultralytics/assets/raw/main/social/logo-transparent.png" width="2%" alt="space">
+  <a href="https://www.instagram.com/kgxperience/"><img src="https://github.com/ultralytics/assets/raw/main/social/logo-social-instagram.png" width="2%" alt="KGX Instagram"></a>
+
+</div>
+</div>
