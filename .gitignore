@@ -5,5 +5,8 @@ src/__pycache__
 *.pth
 venv/*
 .venv/*
+models/
+*.pt
+Dataset/
 
 ```
