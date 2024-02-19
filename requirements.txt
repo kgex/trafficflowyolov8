@@ -25,6 +25,10 @@ paddlepaddle
 protobuf==3.20.*
 paho-mqtt
 ultralytics
+lapx>=0.5.2
 scikit-learn
 filterpy==1.4.5
 webcolors
+torch 
+torchvision 
+torchaudio
