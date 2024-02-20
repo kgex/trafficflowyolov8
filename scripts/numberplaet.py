@@ -76,7 +76,7 @@ def detect(cap):
                         cv2.imwrite(dataset_dir + f"cropped_img{COUNT}.jpg", cropped_img)
                         COUNT += 1
                         
-            cv2.imshow("Frame", frame)
+            # cv2.imshow("Frame", frame)
 
             # Break the loop if 'q' is pressed
             if cv2.waitKey(1) & 0xFF == ord("q"):

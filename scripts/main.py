@@ -111,7 +111,7 @@ def extract_dominant_color(image, k=1):
 
 async def function_async2(plate_crop_img):
     """Function to extract the number plate from the cropped image and pass it to the OCR model"""
-    ocr_output = ocr.ocr(plate_crop_img) # ocr output format = [[[[x1, y1], [x2, y2], [x3, y3], [x4, y4]], [text, confidence]]]
+    ocr_output = ocr.ocr(plate_crop_img, use_gpu=False) # ocr output format = [[[[x1, y1], [x2, y2], [x3, y3], [x4, y4]], [text, confidence]]]
     if ocr_output is None:
         return None
     confidence = ocr_output[0][0][1][1]
@@ -141,7 +141,6 @@ def detect(cap):
     # Track history dictionary
     track_history = defaultdict(lambda: [])
     track_ids = [] 
-
 
     while cap.isOpened():
         # Read a frame from the video
