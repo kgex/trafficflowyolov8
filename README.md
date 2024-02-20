@@ -10,6 +10,7 @@
       <img src="https://github.com/kgex/trafficflowyolov8/blob/5aeb7fb1502605762303f4af2d4a70e2287352bb/assets/Screenshot%202024-01-23%20184317.png" alt="Right Image" style="width: 45%;">
    </div>
 
+
 ## Table of Contents
 - [Getting Started](#getting-started)
 - [Documentation](#documentation)
