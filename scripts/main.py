@@ -20,10 +20,6 @@ requirements.txt file before running the program.
 """
 from collections import defaultdict
 import asyncio
-import socket
-import math
-import pickle
-import time
 import sys
 import os
 import re
@@ -78,6 +74,7 @@ def regex(numplate):
     else:
         return False
     
+
 def convert_rgb_to_names(rgb_tuple):
     """Function to convert the rgb colors to its respective names."""    
     css3_db = CSS3_HEX_TO_NAMES
@@ -90,6 +87,7 @@ def convert_rgb_to_names(rgb_tuple):
     kdt_db = KDTree(rgb_values)
     distance, index = kdt_db.query(rgb_tuple)
     return f'{names[index]}' 
+
 
 def extract_dominant_color(image, k=1):
     """Convert the image from BGR to RGB"""
@@ -108,10 +106,9 @@ def extract_dominant_color(image, k=1):
     return convert_rgb_to_names(dominant_colors[0])
     
 
-
 async def function_async2(plate_crop_img):
     """Function to extract the number plate from the cropped image and pass it to the OCR model"""
-    ocr_output = ocr.ocr(plate_crop_img, use_gpu=False) # ocr output format = [[[[x1, y1], [x2, y2], [x3, y3], [x4, y4]], [text, confidence]]]
+    ocr_output = ocr.ocr(plate_crop_img)  # ocr output format = [[[[x1, y1], [x2, y2], [x3, y3], [x4, y4]], [text, confidence]]]
     if ocr_output is None:
         return None
     confidence = ocr_output[0][0][1][1]
@@ -119,22 +116,21 @@ async def function_async2(plate_crop_img):
     print(numplate, confidence)
     return numplate
 
+
 def detect(cap):   
     """Function to detect vehicles and number plates in a video stream"""
     # Define colors for different vehicles
     color_dict = {2: (0, 255, 0),  # car
-                3: (255, 0, 0),  # bike
-                5: (0, 0, 255),  # bus
-                7: (255, 255, 0)  # truck
-                }
+                  3: (255, 0, 0),  # bike
+                  5: (0, 0, 255),  # bus
+                  7: (255, 255, 0)  # truck
+                  }
 
     # to display the vehicle count
     COUNT = 0
 
     # Get video information (width, height, frames per second)
     width = int(cap.get(cv2.CAP_PROP_FRAME_WIDTH))
-    height = int(cap.get(cv2.CAP_PROP_FRAME_HEIGHT))
-
     roi_line = [(0, 1200), (width, 1200)]
     roi_line_color = (0, 255, 0)  # Green color
 
@@ -149,7 +145,7 @@ def detect(cap):
             cv2.line(frame, roi_line[0], roi_line[1], roi_line_color, 3)
             # Run YOLOv8 tracking on the frame, persisting tracks between frames
             # results = model(frame, classes=[2, 3, 5, 7])
-            results = model.track(frame, classes = [2, 3, 5, 7], persist = True, tracker='botsort.yaml')
+            results = model.track(frame, classes=[2, 3, 5, 7], persist=True, tracker='botsort.yaml')
 
             # Check if boxes are not None before accessing attributes
             if results[0].boxes is not None and len(results[0].boxes.xyxy) > 0:
@@ -184,7 +180,8 @@ def detect(cap):
                 if y2 > 1200 and i < len(track_ids) and track_history.get(track_ids[i]) is None:
                     cropped_img = frame[y1:y2, x1:x2]
                     cv2.imwrite(f"{dataset_dir}vehicle_img{COUNT}.jpg", cropped_img)
-                    #The code to extract the dominant color from the cropped image
+
+                    # The code to extract the dominant color from the cropped image
                     color = extract_dominant_color(cropped_img, k=1)
                                         
                     # Numberplate Identification
@@ -217,7 +214,7 @@ def detect(cap):
                             plate_text = loop.run_until_complete(function_async2(crop_img))
 
                             # If the numberplate is valid                
-                            if plate_text is not None and i < len(track_ids) and regex(plate_text) == True:
+                            if plate_text is not None and i < len(track_ids) and regex(plate_text):
                                 COUNT += 1
                                 print(type(plate_text), plate_text)                          
                                 track_history.update({track_ids[i]: [x1, y1, x2, y2]})
@@ -230,12 +227,8 @@ def detect(cap):
                             cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 255, 0), 2, cv2.LINE_AA)
 
                 # Display the annotated frame
-                resized_frame = cv2.resize(frame, (900, 600))  # Adjust the window size as needed
-                cv2.imshow("YOLOv8 Tracking", resized_frame)
-                normalized_image = resized_frame.astype(np.float32) / 255.0
-                blob = cv2.dnn.blobFromImage(
-                    normalized_image, 1 / 255.0, (416, 416), 
-                    swapRB = True, crop = False)
+                # resized_frame = cv2.resize(frame, (900, 600))  # Adjust the window size as needed
+                # cv2.imshow("YOLOv8 Tracking", resized_frame)
 
             # Break the loop if 'q' is pressed
             if cv2.waitKey(1) & 0xFF == ord("q"):
@@ -247,6 +240,7 @@ def detect(cap):
     # Release the video capture object, close the display window, and release the output video
     cap.release()
 
+
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument('--input', type=str, default=0, help='0 for webcam or path/to/video/file.mp4')
@@ -256,6 +250,7 @@ def main():
     else:
         cap = cv2.VideoCapture(args.input)
     detect(cap)
+
 
 if __name__ == '__main__':
     main()

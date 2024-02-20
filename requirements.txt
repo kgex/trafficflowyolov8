@@ -23,7 +23,7 @@ isort==4.3.21
 imageio
 paddlepaddle
 protobuf==3.20.*
-paho-mqtt
+paho-mqtt==1.6.1
 ultralytics
 lapx>=0.5.2
 scikit-learn

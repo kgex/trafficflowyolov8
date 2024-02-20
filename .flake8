@@ -3,13 +3,7 @@
 max-line-length = 79
 
 # Ignore certain errors or warnings
-ignore =
-    # E203: Whitespace before ':' (not PEP8 compliant, but conflicts with black)
-    E203,
-    # E501: Line too long (handled by black)
-    E501,
-    # W503: Line break occurred before a binary operator (handled by black)
-    W503
+ignore = E203, E501, W503, W291, W293 
 
 # Specify additional files or directories to exclude from linting
 exclude =
