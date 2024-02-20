@@ -7,11 +7,26 @@ RUN apt install git -y
 RUN apt-get install -y mosquitto mosquitto-clients
 RUN apt-get install -y python3-paho-mqtt
 
+# To install the Gstreamer
+RUN apt install -y \
+    libssl3 \
+    libssl-dev \
+    libgstreamer1.0-0 \
+    gstreamer1.0-tools \
+    gstreamer1.0-plugins-good \
+    gstreamer1.0-plugins-bad \
+    gstreamer1.0-plugins-ugly \
+    gstreamer1.0-libav \
+    libgstreamer-plugins-base1.0-dev \
+    libgstrtspserver-1.0-0 \
+    libjansson4 \
+    libyaml-cpp-dev \
+    gstreamer1.0-gtk3 gstreamer1.0-qt5
+
 ADD . /trafficflowyolov8
 WORKDIR /trafficflowyolov8
 
 RUN pip3 install -r requirements.txt
-RUN pip3 install torch torchvision torchaudio
 
 EXPOSE 1883 
 
