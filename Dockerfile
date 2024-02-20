@@ -1,14 +1,16 @@
 FROM nvidia/cuda:12.2.0-base-ubuntu22.04
 
-RUN apt-get update && apt-get install -y python3 python3-pip
-RUN apt install libgl1-mesa-glx -y
-RUN apt-get install ffmpeg libsm6 libxext6  -y
-RUN apt install git -y
-RUN apt-get install -y mosquitto mosquitto-clients
-RUN apt-get install -y python3-paho-mqtt
+RUN apt-get update && apt-get install -y python3 python3-pip \
+    ffmpeg libsm6 libxext6 \
+    mosquitto mosquitto-clients \
+    libgtk2.0-dev
+
+RUN rm -rf /var/lib/apt/lists/*
 
 # To install the Gstreamer
-RUN apt install -y \
+RUN apt-get update && apt install -y \
+    libgl1-mesa-glx \
+    git \ 
     libssl3 \
     libssl-dev \
     libgstreamer1.0-0 \
@@ -21,12 +23,13 @@ RUN apt install -y \
     libgstrtspserver-1.0-0 \
     libjansson4 \
     libyaml-cpp-dev \
-    gstreamer1.0-gtk3 gstreamer1.0-qt5
+    gstreamer1.0-gtk3 \
+    gstreamer1.0-qt5
 
-ADD . /trafficflowyolov8
+ADD . /trafficflowyolov8 
 WORKDIR /trafficflowyolov8
 
-RUN pip3 install -r requirements.txt
+RUN pip3 install -r requirements.txt --no-cache-dir
 
 EXPOSE 1883 
 
