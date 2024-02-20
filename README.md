@@ -12,7 +12,7 @@
 
 ## Table of Contents
 - [Getting Started](#getting-started)
-- [Documentation](#documentaion)
+- [Documentation](#documentation)
 - [Models](#models)
 - [Notebooks](#notebooks)
 - [Contact Us](#developed-by)
@@ -69,15 +69,11 @@ The models were trained using indigenous dataset gathered by the incoming traffi
    |Numbeplate Detection Model  |  0.99308   |      1.1624     |   0.95279   |  0.95196  |  0.94387   |
 
 
+
+#### <div align="center">Vehicle Detection Model</div>
    ![Vehicle_model_metrics](https://github.com/kgex/trafficflowyolov8/blob/7a4392e7b8611efc53cd71b22b46ff2937c1a364/assets/vehicle_dataset_metrics.png)
 
-
-
-
-
-   | Train Loss | Validation loss |    MaP      | Precision |  Recall    |
-   |------------|-----------------|-------------|-----------|------------|
-   
+#### <div align="center">Vehicle Detection Model</div>
 
    ![Numberplate_model_metrics](https://github.com/kgex/trafficflowyolov8/blob/7a4392e7b8611efc53cd71b22b46ff2937c1a364/assets/numberplate_model_metrics.png)
 
