@@ -1,0 +1,40 @@
+version: '3.0'
+services:
+  mytb:
+    hostname: dashboard
+    container_name: thingsboard
+    restart: always
+    image: "thingsboard/tb-cassandra"
+    ports:
+      - "8080:9090"
+      - "1883:1883"
+      - "7070:7070"
+      - "5683-5688:5683-5688/udp"
+    environment:
+      TB_QUEUE_TYPE: in-memory
+    volumes:
+      - .mytb-data:/data
+      - .mytb-logs:/var/log/thingsboard
+    network_mode: "host"
+  # trafficflow:
+  #   depends_on:
+  #     - mytb
+  #   build: ./trafficflowyolov8
+  #   container_name: trafficflow
+  #   environment:
+  #     - MQTT_BROKER_HOST=dashboard
+  #     - MQTT_BROKER_USERNAME="RJqncKgMZMqOQriLWbAQ"
+  #     - MQTT_BROKER_PORT=1883
+  #     - MQTT_BROKER_TOPIC=v1/devices/me/telemetry
+  #   deploy:
+  #     resources:
+  #       reservations:
+  #         devices:
+  #           - driver: nvidia
+  #             count: 1
+  #             capabilities: [gpu]
+
+# networks:
+#   default:
+#     external: true
+#     name: trafficflow_app

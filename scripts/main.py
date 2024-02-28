@@ -23,6 +23,7 @@ import asyncio
 import sys
 import os
 import re
+import time
 import argparse
 from datetime import datetime
 from scipy.spatial import KDTree
@@ -37,10 +38,9 @@ from sklearn.cluster import KMeans
 # Setting up the root directory
 root = os.path.join(os.getcwd())
 sys.path.append(root)
+
 models_dir = os.path.join(root, "models/")
 input_dir = os.path.join(root, "input/")
-output_dir = os.path.join(root, "output/")
-dataset_dir = os.path.join(root, "Dataset/")
 
 # Load the YOLOv8 model
 model = YOLO(models_dir + "vehicle.pt")
@@ -50,10 +50,7 @@ ocr = PaddleOCR(use_angle_cls=True, lang="en")
 # Define MQTT parameters
 TOPIC = 'v1/devices/me/telemetry'
 client = mqtt.Client()
-
-
-client.username_pw_set("Wv4tIZZnQWcHloo1V8de")  
-client.connect("mqtt.thingsboard.cloud", 1883, 60)
+client.username_pw_set("RJqncKgMZMqOQriLWbAQ")  
 
 
 def regex(numplate):
@@ -63,9 +60,6 @@ def regex(numplate):
 
     # When the string is empty
     if not numplate:
-        return False
-
-    if len(numplate) == 0:
         return False
 
     # Return the answer after validating the number plate
@@ -108,13 +102,14 @@ def extract_dominant_color(image, k=1):
 
 async def function_async2(plate_crop_img):
     """Function to extract the number plate from the cropped image and pass it to the OCR model"""
-    ocr_output = ocr.ocr(plate_crop_img)  # ocr output format = [[[[x1, y1], [x2, y2], [x3, y3], [x4, y4]], [text, confidence]]]
+    ocr_output = ocr.ocr(plate_crop_img)  # ocr output format: [[[x1, y1], [x2, y2], [x3, y3], [x4, y4]], (text, confidence)] 
     if ocr_output is None:
         return None
-    confidence = ocr_output[0][0][1][1]
-    numplate = ocr_output[0][0][1][0]
-    print(numplate, confidence)
-    return numplate
+    for idx in range(len(ocr_output)):
+        res = ocr_output[idx]
+        for line in res:
+            numberplate = line
+            return numberplate[1][0]
 
 
 def detect(cap):   
@@ -122,9 +117,8 @@ def detect(cap):
     # Define colors for different vehicles
     color_dict = {2: (0, 255, 0),  # car
                   3: (255, 0, 0),  # bike
-                  5: (0, 0, 255),  # bus
-                  7: (255, 255, 0)  # truck
-                  }
+                  1: (0, 0, 255),  # bus
+                                    }
 
     # to display the vehicle count
     COUNT = 0
@@ -145,11 +139,11 @@ def detect(cap):
             cv2.line(frame, roi_line[0], roi_line[1], roi_line_color, 3)
             # Run YOLOv8 tracking on the frame, persisting tracks between frames
             # results = model(frame, classes=[2, 3, 5, 7])
-            results = model.track(frame, classes=[2, 3, 5, 7], persist=True, tracker='botsort.yaml')
+            results = model.track(frame, persist=True, tracker='botsort.yaml')
 
             # Check if boxes are not None before accessing attributes
             if results[0].boxes is not None and len(results[0].boxes.xyxy) > 0:
-                print("Vehicle Detected!!!!")
+
                 if results[0].boxes.id is not None:
                     track_ids = results[0].boxes.id.int().cpu().tolist()
                 for i in range(len(results[0].boxes)):
@@ -161,16 +155,12 @@ def detect(cap):
                         THICKNESS = 2  # thickness of the bounding box
                         cv2.rectangle(frame, (x1, y1), (x2, y2), color, THICKNESS)
                         # Display class name in the top of the bounding box
-                        if cls == 2:
-                            CLASS_NAME = "Car"
-                        elif cls == 3:
+                        if cls == 1:
                             CLASS_NAME = "Bike"
-                        elif cls == 5:
+                        elif cls == 2:
                             CLASS_NAME = "Bus"
-                        elif cls == 7:
-                            CLASS_NAME = "Truck"
-                        else:
-                            CLASS_NAME = "Unknown"
+                        elif cls == 3:
+                            CLASS_NAME = "Car"
                         cv2.putText(
                             frame, CLASS_NAME, (x1, y1 - 10), 
                             cv2.FONT_HERSHEY_SIMPLEX, 0.5, color,
@@ -179,8 +169,6 @@ def detect(cap):
 
                 if y2 > 1200 and i < len(track_ids) and track_history.get(track_ids[i]) is None:
                     cropped_img = frame[y1:y2, x1:x2]
-                    cv2.imwrite(f"{dataset_dir}vehicle_img{COUNT}.jpg", cropped_img)
-
                     # The code to extract the dominant color from the cropped image
                     color = extract_dominant_color(cropped_img, k=1)
                                         
@@ -188,7 +176,7 @@ def detect(cap):
                     result_new = model2(cropped_img)
 
                     if result_new is not None:
-                        print("numberplate detected!!!!")
+                        print("numberplate detected!!!")
 
                     # If no numberplate is detected
                     if len(result_new[0].boxes) == 0:
@@ -222,14 +210,6 @@ def detect(cap):
                                 print("Data published in mqtt \n", RESULT)
                                 client.publish(TOPIC, RESULT)
 
-                # Draw number plate information on the annotated frame
-                cv2.putText(frame, f'Time: {datetime.now()}', (10, 30),
-                            cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 255, 0), 2, cv2.LINE_AA)
-
-                # Display the annotated frame
-                # resized_frame = cv2.resize(frame, (900, 600))  # Adjust the window size as needed
-                # cv2.imshow("YOLOv8 Tracking", resized_frame)
-
             # Break the loop if 'q' is pressed
             if cv2.waitKey(1) & 0xFF == ord("q"):
                 break
@@ -244,9 +224,22 @@ def detect(cap):
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument('--input', type=str, default=0, help='0 for webcam or path/to/video/file.mp4')
+    client.connect("127.0.0.1", 1883, 60)
+    # if client.is_connected():
+    #     print("Connected to MQTT!!!!")
+    # else:
+    # while not client.is_connected():
+    #     try:
+    #         client.connect("127.0.0.1", 1883, 60)
+    #     except:
+    #         print("Waiting for Connection to be established!!!")
+    #         time.sleep(10)
+    #         continue
+    print("Connected to MQTT!!!!")
+
     args = parser.parse_args()
-    if args.input == '0':
-        cap = cv2.VideoCapture(0)
+    if args.input == 0:
+        cap = cv2.VideoCapture("rtsp://admin:Kgisl@123@172.50.16.235:554/Streaming/Channels/101")
     else:
         cap = cv2.VideoCapture(args.input)
     detect(cap)

@@ -29,7 +29,7 @@ RUN apt-get update && apt install -y \
 ADD . /trafficflowyolov8 
 WORKDIR /trafficflowyolov8
 
-RUN pip3 install -r requirements.txt --no-cache-dir
+RUN pip3 install -r requirements.txt
 
 EXPOSE 1883 
 
