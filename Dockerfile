@@ -31,6 +31,11 @@ WORKDIR /trafficflowyolov8
 
 RUN pip3 install -r requirements.txt
 
-EXPOSE 1883 
+EXPOSE 1883
+
+# Add your own credentials here 
+# If its Thingsboard Cloud add "mqtt.thingsboard.cloud" in THINGSBOARD_HOST
+ENV THINGSBOARD_HOST="127.0.0.1"
+ENV THINGSBOARD_ACCESS_TOKEN="hello"
 
 CMD python3 scripts/main.py --input input/final_input.MOV 

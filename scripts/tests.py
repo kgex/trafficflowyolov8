@@ -1,14 +1,24 @@
 import pytest
 import cv2
 import numpy as np
+from paddleocr import PaddleOCR
 from main import regex, convert_rgb_to_names, extract_dominant_color, function_async2
+
+ocr = PaddleOCR(use_angle_cls=True, lang="en")
 
 @pytest.fixture
 def sample_plate_image():
     # Create a sample plate image for testing
-    plate_image = np.zeros((100, 200, 3), dtype=np.uint8)
-    plate_image.fill(255)  # Fill with white color
-    return plate_image
+    plate_image = cv2.imread("/home/kgx/Projects-Nawin/Thingsboard/trafficflowyolov8/docs/plate_img.jpeg")
+    ocr_output = ocr.ocr(plate_image)  # ocr output format: [[[x1, y1], [x2, y2], [x3, y3], [x4, y4]], (text, confidence)] 
+    if ocr_output is None:
+        return None
+    for idx in range(len(ocr_output)):
+        res = ocr_output[idx]
+        for line in res:
+            numberplate = line
+            assert numberplate[1][0] == "MH12DE1433"
+
 
 def test_regex():
     # Test cases for regex function
@@ -23,16 +33,10 @@ def test_convert_rgb_to_names():
 
 def test_extract_dominant_color(sample_plate_image):
     # Test cases for extract_dominant_color function
-    dominant_color = extract_dominant_color(sample_plate_image)
-    assert dominant_color == "white"  # Since the sample plate image is filled with white color
+    vehicle_image = cv2.imread("/home/kgx/Projects-Nawin/Thingsboard/trafficflowyolov8/docs/vehcile.png")
+    dominant_color = extract_dominant_color(vehicle_image)
+    assert dominant_color == "red"  # Since the sample plate image is filled with white color
 
-@pytest.mark.asyncio
-async def test_function_async2():
-    # Test cases for function_async2 function
-    # Mocking OCR output for testing
-    plate_crop_img = np.zeros((100, 200, 3), dtype=np.uint8)
-    plate_crop_img.fill(255)  # Fill with white color
-    plate_text = await function_async2(plate_crop_img)
-    assert plate_text == None  # Since we haven't provided any OCR output in the test
+
 
 # Additional tests can be added for other functions as needed

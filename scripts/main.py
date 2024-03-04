@@ -39,31 +39,51 @@ from sklearn.cluster import KMeans
 root = os.path.join(os.getcwd())
 sys.path.append(root)
 
+host = os.getenv("THINGSBOARD_HOST")
+access_token = os.getenv("THINGSBOARD_ACCESS_TOKEN")
+
 models_dir = os.path.join(root, "models/")
 input_dir = os.path.join(root, "input/")
 
 # Load the YOLOv8 model
-model = YOLO(models_dir + "vehicle.pt")
+model = YOLO(models_dir + "yolov8n.pt")
 model2 = YOLO(models_dir + "numberplate_model_version_1.pt")
 ocr = PaddleOCR(use_angle_cls=True, lang="en")
+
 
 # Define MQTT parameters
 TOPIC = 'v1/devices/me/telemetry'
 client = mqtt.Client()
-client.username_pw_set("RJqncKgMZMqOQriLWbAQ")  
+client.username_pw_set(access_token)  
+client.connect(host, 1883, 60)
+
+
+class_dict = {
+              2 : "Car", 
+              3 : "Bike", 
+              5 : "Bus"
+              }
+
+# Define colors for different vehicles
+color_dict = {
+            2: (0, 255, 0),  # car
+            3: (255, 0, 0),  # bike
+            5: (0, 0, 255),  # bus
+            }
 
 
 def regex(numplate):
     """Function to check if the number plate is valid or not"""
     # Defining the regular expression
-    patt = "^[A-Z]{2}[ -]?[0-9]{2}[ -]?[A-Z]{1,2}[ -]?[0-9]{4}$"
+    patt1 = "^[A-Z]{2}[ -]?[0-9]{2}[ -]?[A-Z]{1,2}[ -]?[0-9]{4}$"
+    patt2 = "^[A-Z]{2}[ -]?[0-9]{2}[ -]?[0-9]{4}$"
 
     # When the string is empty
     if not numplate:
         return False
 
     # Return the answer after validating the number plate
-    if re.match(patt, numplate):
+    if re.match(patt1, numplate) or re.match(patt2, numplate):
         return True
     else:
         return False
@@ -114,134 +134,105 @@ async def function_async2(plate_crop_img):
 
 def detect(cap):   
     """Function to detect vehicles and number plates in a video stream"""
-    # Define colors for different vehicles
-    color_dict = {2: (0, 255, 0),  # car
-                  3: (255, 0, 0),  # bike
-                  1: (0, 0, 255),  # bus
-                                    }
-
     # to display the vehicle count
     COUNT = 0
 
     # Get video information (width, height, frames per second)
     width = int(cap.get(cv2.CAP_PROP_FRAME_WIDTH))
-    roi_line = [(0, 1200), (width, 1200)]
+    roi_line = [(0, 900), (width, 900)]
     roi_line_color = (0, 255, 0)  # Green color
 
     # Track history dictionary
     track_history = defaultdict(lambda: [])
     track_ids = [] 
-
     while cap.isOpened():
         # Read a frame from the video
         success, frame = cap.read()
-        if success:
-            cv2.line(frame, roi_line[0], roi_line[1], roi_line_color, 3)
-            # Run YOLOv8 tracking on the frame, persisting tracks between frames
-            # results = model(frame, classes=[2, 3, 5, 7])
-            results = model.track(frame, persist=True, tracker='botsort.yaml')
 
-            # Check if boxes are not None before accessing attributes
-            if results[0].boxes is not None and len(results[0].boxes.xyxy) > 0:
+        if not success:
+            tries = 0
+            try:
+                print("Waiting to connect again..")
+                cv2.VideoCapture(args.input)
+                tries += 1
+                time.sleep(1)
+            except:
+                if tries < 10:
+                    print("Failed to receive frame. Your video/RTSP feed may have stopped.")
+                    break
 
-                if results[0].boxes.id is not None:
-                    track_ids = results[0].boxes.id.int().cpu().tolist()
-                for i in range(len(results[0].boxes)):
-                    x1, y1, x2, y2 = map(int, results[0].boxes.xyxy.cpu()[i])
-                    cls = results[0].boxes.cls[i].item()
-                    # Draw bounding box based on the detected class
-                    if cls in color_dict:
-                        color = color_dict[cls]
-                        THICKNESS = 2  # thickness of the bounding box
-                        cv2.rectangle(frame, (x1, y1), (x2, y2), color, THICKNESS)
-                        # Display class name in the top of the bounding box
-                        if cls == 1:
-                            CLASS_NAME = "Bike"
-                        elif cls == 2:
-                            CLASS_NAME = "Bus"
-                        elif cls == 3:
-                            CLASS_NAME = "Car"
-                        cv2.putText(
-                            frame, CLASS_NAME, (x1, y1 - 10), 
-                            cv2.FONT_HERSHEY_SIMPLEX, 0.5, color,
-                            THICKNESS
-                        )
+        cv2.line(frame, roi_line[0], roi_line[1], roi_line_color, 3)
+        results = model.track(frame, classes = [2,3,5], persist=True, tracker='botsort.yaml')
 
-                if y2 > 1200 and i < len(track_ids) and track_history.get(track_ids[i]) is None:
-                    cropped_img = frame[y1:y2, x1:x2]
-                    # The code to extract the dominant color from the cropped image
-                    color = extract_dominant_color(cropped_img, k=1)
-                                        
-                    # Numberplate Identification
-                    result_new = model2(cropped_img)
+        # Check if boxes are not None before accessing attributes
+        if results[0].boxes is not None and len(results[0].boxes.xyxy) > 0:
 
-                    if result_new is not None:
-                        print("numberplate detected!!!")
+            if results[0].boxes.id is not None:
+                track_ids = results[0].boxes.id.int().cpu().tolist()
+            for i in range(len(results[0].boxes)):
+                x1, y1, x2, y2 = map(int, results[0].boxes.xyxy.cpu()[i])
+                CLASS_NAME = results[0].boxes.cls[i].item()
+                # Draw bounding box based on the detected class
+                if CLASS_NAME in color_dict:
+                    color = color_dict[CLASS_NAME]
+                    THICKNESS = 2  # thickness of the bounding box
+                    cv2.rectangle(frame, (x1, y1), (x2, y2), color, THICKNESS)
 
-                    # If no numberplate is detected
-                    if len(result_new[0].boxes) == 0:
-                        COUNT += 1
-                        RESULT = "{" + "vehicle_id" + ":" + str(COUNT) + "," + "vehicle_type" + ":" + str(CLASS_NAME) + "," + "color" + ":" + str(color) + "," "numplate" + ":" + "None" + "}"
-                        track_history.update({track_ids[i]: [x1, y1, x2, y2]})                  
-                        print("Data published in mqtt \n", RESULT)
-                        client.publish(TOPIC, RESULT)
-                        continue
+            if y2 > 900 and i < len(track_ids) and track_history.get(track_ids[i]) is None:
+                cropped_img = frame[y1:y2, x1:x2]
+                # The code to extract the dominant color from the cropped image
+                color = extract_dominant_color(cropped_img, k=1)
+                                    
+                # Numberplate Identification
+                result_new = model2(cropped_img)
 
-                    # Processing numberplate detections
-                    for i in range(len(result_new[0].boxes)):
-                        if result_new[0].boxes is not None and len(result_new[0].boxes.xyxy) > 0:
-                            x, y, w, h = result_new[0].boxes.xyxy[0]
-                            x = x.cpu().numpy().astype(np.int32)
-                            y = y.cpu().numpy().astype(np.int32)
-                            w = w.cpu().numpy().astype(np.int32)
-                            h = h.cpu().numpy().astype(np.int32)
+                if result_new is not None:
+                    print("numberplate detected!!!")
 
-                            # cropping the image to pass it to the ocr model.
-                            crop_img = cropped_img[y:h, x:w]
-                            loop = asyncio.get_event_loop()
-                            plate_text = loop.run_until_complete(function_async2(crop_img))
+                # If no numberplate is detected
+                if len(result_new[0].boxes) == 0:
+                    COUNT += 1
+                    RESULT = "{" + "vehicle_id" + ":" + str(COUNT) + "," + "vehicle_type" + ":" + str(class_dict[CLASS_NAME]) + "," + "color" + ":" + str(color) + "," "numplate" + ":" + "None" + "}"
+                    track_history.update({track_ids[i]: [x1, y1, x2, y2]})                  
+                    print("Data published in mqtt \n", RESULT)
+                    client.publish(TOPIC, RESULT)
+                    continue
 
-                            # If the numberplate is valid                
-                            if plate_text is not None and i < len(track_ids) and regex(plate_text):
-                                COUNT += 1
-                                print(type(plate_text), plate_text)                          
-                                track_history.update({track_ids[i]: [x1, y1, x2, y2]})
-                                RESULT = "{" + "vehicle_id" + ":" + str(COUNT) + "," + "vehicle_type" + ":" + str(CLASS_NAME) + "," + "color" + ":" + str(color) + "," "numplate" + ":" + str(plate_text) + "}"    
-                                print("Data published in mqtt \n", RESULT)
-                                client.publish(TOPIC, RESULT)
+                # Processing numberplate detections
+                for i in range(len(result_new[0].boxes)):
+                    if result_new[0].boxes is not None and len(result_new[0].boxes.xyxy) > 0:
+                        x, y, w, h = result_new[0].boxes.xyxy[0]
+                        x = x.cpu().numpy().astype(np.int32)
+                        y = y.cpu().numpy().astype(np.int32)
+                        w = w.cpu().numpy().astype(np.int32)
+                        h = h.cpu().numpy().astype(np.int32)
 
-            # Break the loop if 'q' is pressed
-            if cv2.waitKey(1) & 0xFF == ord("q"):
-                break
-        else:
-            # Break the loop if the end of the video is reached
+                        # cropping the image to pass it to the ocr model.
+                        crop_img = cropped_img[y:h, x:w]
+                        loop = asyncio.get_event_loop()
+                        plate_text = loop.run_until_complete(function_async2(crop_img))
+
+                        # If the numberplate is valid                
+                        if plate_text is not None and i < len(track_ids) and regex(plate_text):
+                            COUNT += 1
+                            print(type(plate_text), plate_text)                          
+                            track_history.update({track_ids[i]: [x1, y1, x2, y2]})
+                            RESULT = "{" + "vehicle_id" + ":" + str(COUNT) + "," + "vehicle_type" + ":" + str(class_dict[CLASS_NAME]) + "," + "color" + ":" + str(color) + "," "numplate" + ":" + str(plate_text) + "}"    
+                            print("Data published in mqtt \n", RESULT)
+                            client.publish(TOPIC, RESULT)
+            
+        # Break the loop if 'q' is pressed
+        if cv2.waitKey(1) & 0xFF == ord("q"):
             break
 
-    # Release the video capture object, close the display window, and release the output video
-    cap.release()
+
 
 
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument('--input', type=str, default=0, help='0 for webcam or path/to/video/file.mp4')
-    client.connect("127.0.0.1", 1883, 60)
-    # if client.is_connected():
-    #     print("Connected to MQTT!!!!")
-    # else:
-    # while not client.is_connected():
-    #     try:
-    #         client.connect("127.0.0.1", 1883, 60)
-    #     except:
-    #         print("Waiting for Connection to be established!!!")
-    #         time.sleep(10)
-    #         continue
-    print("Connected to MQTT!!!!")
-
     args = parser.parse_args()
-    if args.input == 0:
-        cap = cv2.VideoCapture("rtsp://admin:Kgisl@123@172.50.16.235:554/Streaming/Channels/101")
-    else:
-        cap = cv2.VideoCapture(args.input)
+    cap = cv2.VideoCapture(args.input)
     detect(cap)
 
 

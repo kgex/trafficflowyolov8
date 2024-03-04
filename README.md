@@ -1,6 +1,6 @@
 # <div align="center">TrafficFlow</div> 
 
-* TrafficFlow is an open-source project developed by [KGXperience](https://kgx.nivu.me) designed for the automated vehicle surveillance of a given region. 
+* TrafficFlow is a project developed by [KGXperience](https://kgx.nivu.me) designed for the automated vehicle surveillance of a given region. 
 * The project consists of an object detection pipeline that tracks the entry and exit of vehicles by keeping track of their numberplate.
 * The object detection pipeline is built using YOLOv8 and the dashboard is built using Thingsboard server.
  
@@ -21,23 +21,28 @@
 
 ## Getting Started
 
-Follow these simple steps to get started with TrafficFlow:
+The Thingsboard network need to be setup manually before running the Trafficflow container. For setting up the dashboard import the *trafficflow.json* file to the dashboard section. Refer [Thingsboard documentaion](https://thingsboard.io/docs/) for further queries.
 
-1. *Clone the Repository:* 
+**Note:** Login to the Thingsboard network as tenant. 
+**Username:** tenant@thingsboard
+
+1. *Setup the thingsboard network* 
    ```
-   git clone https://github.com/kgex/trafficflowyolov8
+   docker compose up -d
    ```
-2. *Install Requirements:*
+2. *Change the environmental variables of the dockerfile to your requirement*
    ```
-   pip install -r requirements.txt
+   ENV THINGSBOARD_HOST="YOUR_HOST" 
+   ENV THINGSBOARD_ACCESS_TOKEN="YOUR_TOKEN"
+   ENV INPUT="YOUR_INPUT"
    ```
-3. *Download Sample Video*
+3. *Build the docker image*
    ```
-   gdown https://drive.google.com/uc?id=1_Lsve_tfnv5weRMnYE93K1aANWyoRk8E
+   docker build -t trafficflow .
    ```
-4. *Run the Code:*
+4. *Run the docker container*
    ```
-   python scripts/main.py --input # 0 for webcam or path/to/video.mp4
+   docker run --gpus all --network host trafficflow s
    ```
 
 ## <div align="center">Documentation</div>
